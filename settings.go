@@ -56,6 +56,9 @@ type Settings struct {
 	// Tailscale shares the traffic with the other devices of the tailnet
 	// that run the app, found on their own.
 	Tailscale bool `json:"tailscale"`
+	// Language is the language of the app, a tag of i18n.Languages; empty
+	// follows the system.
+	Language string `json:"language"`
 
 	// Not stored in the settings file.
 	OpenAtLogin       bool `json:"openAtLogin"`

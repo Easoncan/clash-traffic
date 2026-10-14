@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { takeChanged } from "../src/lib/form";
+import { setLang } from "../src/lib/i18n";
 import { appendRate, newerLive } from "../src/lib/live";
 import { rangeLabel, resolve } from "../src/lib/range";
 import type { Live } from "../src/mygo";
@@ -36,7 +37,10 @@ describe("custom range (review #18)", () => {
       const { from: a, to: b } = resolve(r);
       expect(new Date(a).getDate()).toBe(12);
       expect((b - a) / 86_400_000).toBe(3);
+      setLang("zh-Hans");
       expect(rangeLabel(r)).toBe("2026-10-12 至 2026-10-14");
+      setLang("en");
+      expect(rangeLabel(r)).toBe("2026-10-12 to 2026-10-14");
     }
   });
 });

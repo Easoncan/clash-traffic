@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,6 +11,7 @@ import (
 
 	"clashtraffic/internal/clash"
 	"clashtraffic/internal/collector"
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/mesh"
 	"clashtraffic/internal/sessions"
 	"clashtraffic/internal/store"
@@ -62,7 +62,7 @@ func (t *Traffic) Devices() []store.DeviceInfo {
 func (t *Traffic) Export(ctx context.Context, q store.Query) (string, error) {
 	path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{
 		Parent:      mygo.CallerWindow(ctx),
-		Title:       "导出流量明细",
+		Title:       i18n.T("Export the traffic"),
 		DefaultPath: "clash-traffic-" + time.Now().Format("20060102-1504") + ".csv",
 		Filters:     []mygo.FileFilter{{Name: "CSV", Extensions: []string{"csv"}}},
 	})
@@ -101,9 +101,9 @@ func (t *Traffic) ForgetDevice(ctx context.Context, id string) (bool, error) {
 	res, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Parent:  mygo.CallerWindow(ctx),
 		Type:    mygo.MessageWarning,
-		Message: fmt.Sprintf("删除设备“%s”在本机的数据？", name),
-		Detail:  "只删除本机缓存的副本。若该设备仍在同步，下次同步时数据会重新下载。",
-		Buttons: []string{"删除", "取消"},
+		Message: i18n.T("Delete this computer's copy of the data of “%s”?", name),
+		Detail:  i18n.T("Only the copy on this computer is deleted. If the device still syncs, its data comes back at the next sync."),
+		Buttons: []string{i18n.T("Delete"), i18n.T("Cancel")},
 	})
 	if err != nil || res.Button != 0 {
 		return false, err
@@ -183,8 +183,8 @@ func (p *Preferences) TestSync(s Settings, webdavPassword *string) error {
 func (p *Preferences) ChooseFolder(ctx context.Context) (string, error) {
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
 		Parent:            mygo.CallerWindow(ctx),
-		Title:             "选择同步文件夹",
-		Message:           "选择一个由 iCloud、OneDrive、Dropbox、Syncthing 等同步的文件夹，将在其中创建 ClashTraffic 子文件夹",
+		Title:             i18n.T("Choose a sync folder"),
+		Message:           i18n.T("Choose a folder that iCloud, OneDrive, Dropbox, Syncthing or the like syncs: a ClashTraffic folder is made in it"),
 		Directory:         true,
 		CreateDirectories: true,
 	})
@@ -210,6 +210,9 @@ func (p *Preferences) About() AboutInfo {
 		Updates:  updateInfo(),
 	}
 }
+
+// Language returns the language the app shows, a tag of i18n.Languages.
+func (p *Preferences) Language() string { return i18n.Current() }
 
 // CheckForUpdates checks for a new version now, in the update window.
 func (p *Preferences) CheckForUpdates() { checkForUpdates() }

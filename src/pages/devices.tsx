@@ -2,9 +2,12 @@ import { useState } from "preact/hooks";
 import { Card, FilterBar, toQuery, type PageProps } from "../app";
 import { errorText, useEventValue, useReport } from "../lib/hooks";
 import { ago, bytes, count, osName, percent, rate } from "../lib/format";
+import { t, tn } from "../lib/i18n";
+import { subLabel } from "../lib/names";
 import { events, Monitor, Sync, Traffic, type MeshStatus, type PeerStatus, type SyncStatus } from "../mygo";
 
-const KIND: Record<string, string> = { off: "未开启", folder: "共享文件夹", webdav: "WebDAV" };
+/** The ways to sync, in English: t() shows them. */
+const KIND: Record<string, string> = { off: "Off", folder: "Shared folder", webdav: "WebDAV" };
 
 export function DevicesPage({ filters, setFilters, go, notify, status }: PageProps) {
   const { query, live } = toQuery({ ...filters, device: "" }, { limit: 1 });
@@ -22,7 +25,7 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
     setBusy(true);
     try {
       const s = await Sync.now();
-      notify(`同步完成：上传 ${s.uploaded} 个文件，下载 ${s.downloaded} 个文件`);
+      notify(t("Synced: {up} files uploaded, {down} downloaded", { up: s.uploaded, down: s.downloaded }));
     } catch (err) {
       notify(errorText(err), "error");
     } finally {
@@ -32,7 +35,7 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
 
   const forget = async (id: string) => {
     try {
-      if (await Traffic.forgetDevice(id)) notify("已删除该设备在本机的数据");
+      if (await Traffic.forgetDevice(id)) notify(t("Deleted this computer's copy of the device's data"));
     } catch (err) {
       notify(errorText(err), "error");
     }
@@ -57,20 +60,24 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
                 title={
                   <>
                     {d.device.name}
-                    {d.self && <span class="badge">本机</span>}
+                    {d.self && <span class="badge">{t("This computer")}</span>}
                   </>
                 }
                 extra={
                   !d.self && (
                     <button type="button" class="ghost small" onClick={() => forget(d.device.id)}>
-                      删除
+                      {t("Delete")}
                     </button>
                   )
                 }
               >
                 <div class="device-online">
                   <span class={`status-dot ${online ? "good" : "idle"}`} aria-hidden="true" />
-                  {online ? (speed ? `在线 · ↓ ${rate(speed.downRate)} ↑ ${rate(speed.upRate)}` : "在线 · 未连接 Clash") : `离线 · 数据更新于 ${ago(d.device.updated)}`}
+                  {online
+                    ? speed
+                      ? `${t("Online")} · ↓ ${rate(speed.downRate)} ↑ ${rate(speed.upRate)}`
+                      : `${t("Online")} · ${t("Not connected to Clash")}`
+                    : `${t("Offline")} · ${t("Data updated {ago}", { ago: ago(d.device.updated) })}`}
                 </div>
                 <div class="device-total">{bytes(sum)}</div>
                 <div class="bar-track wide">
@@ -78,17 +85,17 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
                   {d.up > 0 && <span class="bar-fill s-up" style={{ width: `${Math.max(0.4, (d.up / max) * 100)}%` }} />}
                 </div>
                 <dl class="kv">
-                  <dt>下载 / 上传</dt>
+                  <dt>{t("Download / upload")}</dt>
                   <dd>
                     {bytes(d.down)} / {bytes(d.up)}
                   </dd>
-                  <dt>占全部设备</dt>
+                  <dt>{t("Share of all devices")}</dt>
                   <dd>{percent(sum, total)}</dd>
-                  <dt>连接数</dt>
+                  <dt>{t("Connections")}</dt>
                   <dd>{count(d.conns)}</dd>
-                  <dt>当前订阅</dt>
-                  <dd>{current ? current.name : "—"}</dd>
-                  <dt>系统</dt>
+                  <dt>{t("Current subscription")}</dt>
+                  <dd>{current ? subLabel(current.name) : "—"}</dd>
+                  <dt>{t("System")}</dt>
                   <dd>
                     {osName(d.device.os)} {d.device.arch}
                   </dd>
@@ -102,7 +109,7 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
                   )}
                 </dl>
                 <button type="button" class="link" onClick={() => (setFilters({ device: d.device.id }), go("overview"))}>
-                  只看这台设备 ›
+                  {t("Show this device only")} ›
                 </button>
               </Card>
             );
@@ -111,33 +118,31 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
 
         {sync && sync.kind !== "off" && (
           <Card
-            title="其他同步方式"
+            title={t("Other ways to sync")}
             extra={
               <button type="button" class="primary" disabled={busy || sync.running} onClick={syncNow}>
-                {busy || sync.running ? "同步中…" : "立即同步"}
+                {busy || sync.running ? t("Syncing…") : t("Sync now")}
               </button>
             }
           >
             <div class="sync-grid">
               <div>
-                <span class="muted">方式</span>
-                <strong>{KIND[sync.kind]}</strong>
+                <span class="muted">{t("Method")}</span>
+                <strong>{t(KIND[sync.kind] ?? sync.kind)}</strong>
               </div>
               <div>
-                <span class="muted">上次同步</span>
-                <strong>{sync.lastSync ? ago(sync.lastSync) : "尚未同步"}</strong>
+                <span class="muted">{t("Last sync")}</span>
+                <strong>{sync.lastSync ? ago(sync.lastSync) : t("Not synced yet")}</strong>
               </div>
               <div>
-                <span class="muted">远端其他设备</span>
+                <span class="muted">{t("Other devices there")}</span>
                 <strong>{sync.devices}</strong>
               </div>
               <div>
-                <span class="muted">上次传输</span>
-                <strong>
-                  ↑ {sync.uploaded} · ↓ {sync.downloaded} 个文件
-                </strong>
+                <span class="muted">{t("Last transfer")}</span>
+                <strong>{tn("↑ {up} · ↓ {n} files", sync.downloaded, { up: sync.uploaded })}</strong>
               </div>
-              {sync.lastError && <div class="banner error wide">同步出错：{sync.lastError}</div>}
+              {sync.lastError && <div class="banner error wide">{t("Sync failed: {error}", { error: sync.lastError })}</div>}
             </div>
           </Card>
         )}
@@ -146,10 +151,11 @@ export function DevicesPage({ filters, setFilters, go, notify, status }: PagePro
   );
 }
 
+/** The states of a peer, their labels in English: t() shows them. */
 const STATE: Record<string, { label: string; dot: string }> = {
-  app: { label: "运行 Clash Traffic", dot: "good" },
-  noapp: { label: "未运行本应用", dot: "idle" },
-  offline: { label: "离线", dot: "idle" },
+  app: { label: "Runs Clash Traffic", dot: "good" },
+  noapp: { label: "Does not run this app", dot: "idle" },
+  offline: { label: "Offline", dot: "idle" },
 };
 
 function TailscaleCard({ mesh, go }: { mesh: MeshStatus | null; go: PageProps["go"] }) {
@@ -163,50 +169,50 @@ function TailscaleCard({ mesh, go }: { mesh: MeshStatus | null; go: PageProps["g
   const found = mesh.peers.filter((p) => p.state === "app");
   return (
     <Card
-      title="Tailscale 自动同步"
+      title={t("Tailscale sync")}
       extra={
         <div class="card-tools">
-          {mesh.lastScan > 0 && <span class="muted small">扫描于 {ago(mesh.lastScan)}</span>}
+          {mesh.lastScan > 0 && <span class="muted small">{t("Scanned {ago}", { ago: ago(mesh.lastScan) })}</span>}
           <button type="button" class="ghost" disabled={!mesh.enabled || scanning || mesh.scanning} onClick={scan}>
-            {scanning || mesh.scanning ? "扫描中…" : "立即扫描"}
+            {scanning || mesh.scanning ? t("Scanning…") : t("Scan now")}
           </button>
         </div>
       }
     >
       {!mesh.enabled ? (
         <p class="muted">
-          已关闭。
+          {t("Off.")}{" "}
           <button type="button" class="link" onClick={() => go("settings")}>
-            在设置中开启
+            {t("Turn it on in Settings")}
           </button>
         </p>
       ) : !mesh.available ? (
         <div class="banner warning">
-          <strong>{mesh.error || "正在查找 Tailscale…"}</strong>
-          <div class="small">安装并登录 Tailscale 后，同一 tailnet 中运行 Clash Traffic 的电脑会自动互相发现、合并统计，无需任何配置。</div>
+          <strong>{mesh.error || t("Looking for Tailscale…")}</strong>
+          <div class="small">
+            {t("Once Tailscale is installed and signed in, the computers of the tailnet that run Clash Traffic find each other and merge their numbers, with no setup.")}
+          </div>
         </div>
       ) : (
         <>
           <div class="ts-head">
             <span class={`status-dot ${mesh.serving ? "good" : "warning"}`} aria-hidden="true" />
             <span>
-              本机 <strong>{mesh.selfHost}</strong> · {mesh.selfIP}:{mesh.port}
+              {t("This computer")} <strong>{mesh.selfHost}</strong> · {mesh.selfIP}:{mesh.port}
               {mesh.tailnet && <span class="muted"> · {mesh.tailnet}</span>}
             </span>
-            <span class="muted">
-              · 发现 {found.length} 台运行 Clash Traffic 的设备，每分钟同步一次
-            </span>
+            <span class="muted"> · {tn("{n} devices running Clash Traffic found, synced every minute", found.length)}</span>
           </div>
-          {mesh.serveError && <div class="banner error">其他设备无法从本机读取数据：{mesh.serveError}</div>}
+          {mesh.serveError && <div class="banner error">{t("Other devices cannot read from this computer: {error}", { error: mesh.serveError })}</div>}
           <div class="table-wrap ts-table">
             <table class="table">
               <thead>
                 <tr>
-                  <th>设备</th>
-                  <th>地址</th>
-                  <th>状态</th>
-                  <th class="num">实时速度</th>
-                  <th class="num">最近同步</th>
+                  <th>{t("Device")}</th>
+                  <th>{t("Address")}</th>
+                  <th>{t("Status")}</th>
+                  <th class="num">{t("Live speed")}</th>
+                  <th class="num">{t("Last sync")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,7 +223,7 @@ function TailscaleCard({ mesh, go }: { mesh: MeshStatus | null; go: PageProps["g
             </table>
           </div>
           <p class="hint footnote">
-            只有同一 tailnet 中你自己的设备（不含他人共享进来的设备）能读取本机的统计数据；访问记录不会共享。
+            {t("Only your own devices of the tailnet, not those shared into it, can read this computer's numbers; the access log is not shared.")}
           </p>
         </>
       )}
@@ -238,7 +244,7 @@ function PeerRow({ p }: { p: PeerStatus }) {
       </td>
       <td class="muted">{p.ip}</td>
       <td title={p.error}>
-        <span class={`status-dot ${st.dot}`} aria-hidden="true" /> {st.label}
+        <span class={`status-dot ${st.dot}`} aria-hidden="true" /> {t(st.label)}
         {p.state === "app" && p.error && <div class="detail error-text">{p.error}</div>}
       </td>
       <td class="num">{p.state === "app" && p.live.connected ? `↓ ${rate(p.live.downRate)} ↑ ${rate(p.live.upRate)}` : "—"}</td>

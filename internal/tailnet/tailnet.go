@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"clashtraffic/internal/i18n"
 )
 
 // Node is a device of the tailnet.
@@ -128,14 +130,11 @@ func Parse(data []byte) (*Status, error) {
 	return st, nil
 }
 
-// ErrNotInstalled is returned when no tailscale command is found.
-var ErrNotInstalled = errors.New("没有找到 Tailscale，请先安装并登录 Tailscale")
-
 // Get runs tailscale status --json.
 func Get(ctx context.Context) (*Status, error) {
 	cli := cliPath()
 	if cli == "" {
-		return nil, ErrNotInstalled
+		return nil, errors.New(i18n.T("Tailscale was not found: install it and sign in first"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
@@ -146,7 +145,7 @@ func Get(ctx context.Context) (*Status, error) {
 		// It exits non-zero when stopped or logged out, but still reports.
 		if st, perr := Parse(out); perr == nil {
 			if !st.Running() {
-				return st, fmt.Errorf("Tailscale 未连接（%s）", st.State)
+				return st, i18n.Errorf("Tailscale is not connected (%s)", st.State)
 			}
 			return st, nil
 		}
@@ -158,7 +157,7 @@ func Get(ctx context.Context) (*Status, error) {
 		}
 		return nil, fmt.Errorf("tailscale status: %w", err)
 	}
-	return nil, errors.New("tailscale status 没有输出")
+	return nil, errors.New(i18n.T("tailscale status printed nothing"))
 }
 
 // cliPath finds the tailscale command. Apps started from the desktop do

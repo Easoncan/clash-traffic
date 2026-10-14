@@ -12,6 +12,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
+
+	"clashtraffic/internal/i18n"
 )
 
 // UpdateInfo is what the settings page shows of updates.
@@ -36,10 +38,10 @@ var UpdateEvent = mygo.NewEvent[UpdateInfo]("updates")
 var updaterUsed bool
 
 // useUpdater checks for updates once a day, in the update window of the
-// plugin, in Chinese as the rest of the app. Requests to GitHub go through
-// the proxy of Clash.
-func useUpdater(core *Core) {
-	mygo.Use(updater.New(updater.Options{Language: "zh-Hans"}))
+// plugin, in lang, the language chosen at launch: "" follows the system.
+// Requests to GitHub go through the proxy of Clash.
+func useUpdater(core *Core, lang string) {
+	mygo.Use(updater.New(updater.Options{Language: lang}))
 	updaterUsed = true
 	if t, ok := http.DefaultTransport.(*http.Transport); ok {
 		t.Proxy = core.updateProxy
@@ -91,12 +93,13 @@ func isGitHub(host string) bool {
 	return false
 }
 
-// updateMenuItem is "检查更新…", or nil without the updater.
+// updateMenuItem is "Check for Updates…", in the language of the app, or
+// nil without the updater.
 func updateMenuItem() *mygo.MenuItem {
 	if !updaterUsed {
 		return nil
 	}
-	return updater.MenuItem()
+	return &mygo.MenuItem{ID: "check-updates", Label: i18n.T("Check for Updates…"), Click: func(*mygo.MenuItem, *mygo.Window) { checkForUpdates() }}
 }
 
 func updateInfo() UpdateInfo {
@@ -126,19 +129,19 @@ func updatePrefs() (autoCheck, autoInstall bool) {
 // whyNoUpdates explains why this build cannot update itself.
 func whyNoUpdates() string {
 	if mygo.IsDev() {
-		return "开发版不会自动更新"
+		return i18n.T("Development builds do not update themselves")
 	}
 	exe, _ := os.Executable()
 	exe, _ = filepath.EvalSymlinks(exe)
 	switch {
 	case runtime.GOOS == "darwin" && strings.HasPrefix(exe, "/Volumes/"):
-		return "正在从磁盘映像运行：请先把 Clash Traffic 拖到“应用程序”文件夹"
+		return i18n.T("Running from the disk image: drag Clash Traffic to the Applications folder first")
 	case runtime.GOOS == "darwin" && strings.Contains(exe, "/AppTranslocation/"):
-		return "macOS 正在隔离运行本应用：请把它移到“应用程序”文件夹后重新打开"
+		return i18n.T("macOS runs the app from a quarantined copy: move it to the Applications folder and open it again")
 	case runtime.GOOS == "linux" && (strings.HasPrefix(exe, "/opt/") || strings.HasPrefix(exe, "/usr/")):
-		return "通过软件包安装：请用系统的软件包管理器更新"
+		return i18n.T("Installed by a package: update it with the system's package manager")
 	}
-	return "没有写入安装目录的权限，无法自动更新"
+	return i18n.T("The app cannot write where it is installed, so it cannot update itself")
 }
 
 // setUpdatePrefs applies the update choices of saved settings.

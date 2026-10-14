@@ -24,10 +24,13 @@ type Query struct {
 	Chain       string   `json:"chain"`
 	GroupDomain bool     `json:"groupDomain"` // hosts by registrable domain: a.b.google.com is google.com
 	Search      string   `json:"search"`      // filters the names in the lists
-	Limit       int      `json:"limit"`       // per list; 0 is 100
-	Bucket      string   `json:"bucket"`      // "hour", "day", or "" to pick by the range
-	Route       Route    `json:"route"`       // only this route; "" for all
-	Sub         string   `json:"sub"`         // only this subscription; "" for all
+	// SearchAlso are names that match too, as the data spells them: the
+	// page shows some in the user's language.
+	SearchAlso []string `json:"searchAlso"`
+	Limit      int      `json:"limit"`  // per list; 0 is 100
+	Bucket     string   `json:"bucket"` // "hour", "day", or "" to pick by the range
+	Route      Route    `json:"route"`  // only this route; "" for all
+	Sub        string   `json:"sub"`    // only this subscription; "" for all
 	// NoSub, with Sub "", selects the traffic of no subscription: direct.
 	NoSub bool `json:"noSub"`
 }
@@ -354,7 +357,7 @@ func (s *Store) Query(q Query) *Report {
 	list := func(m map[string]*agg, filter bool, limit int) ([]Item, int) {
 		items := make([]Item, 0, len(m))
 		for name, a := range m {
-			if filter && search != "" && !strings.Contains(strings.ToLower(name), search) {
+			if filter && search != "" && !Matches(name, search, q.SearchAlso) {
 				continue
 			}
 			items = append(items, Item{Name: name, Up: a.Up, Down: a.Down, Conns: a.Conns, Detail: a.detail})
@@ -467,4 +470,19 @@ func (s *Store) Export(q Query, w io.Writer) error {
 	}
 	cw.Flush()
 	return cw.Error()
+}
+
+// Matches reports whether name contains search, lower case, or one of
+// also, the names the data gives what the page shows in another language.
+func Matches(name, search string, also []string) bool {
+	name = strings.ToLower(name)
+	if strings.Contains(name, search) {
+		return true
+	}
+	for _, a := range also {
+		if a = strings.ToLower(a); a != "" && strings.Contains(name, a) {
+			return true
+		}
+	}
+	return false
 }

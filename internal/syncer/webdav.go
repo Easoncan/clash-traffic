@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/store"
 )
 
@@ -72,7 +73,7 @@ func (w *WebDAV) req(ctx context.Context, method, u string, body []byte, header 
 	}
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		resp.Body.Close()
-		return nil, fmt.Errorf("认证失败（%s），请检查用户名和密码（坚果云需使用“应用密码”）", resp.Status)
+		return nil, i18n.Errorf("Signing in failed (%s): check the user name and password (Nutstore needs an app password)", resp.Status)
 	}
 	return resp, nil
 }
@@ -88,7 +89,7 @@ func (w *WebDAV) mkcol(ctx context.Context, u string) error {
 	resp.Body.Close()
 	// 405: it exists already.
 	if resp.StatusCode/100 != 2 && resp.StatusCode != http.StatusMethodNotAllowed {
-		return fmt.Errorf("创建目录 %s: %s", u, resp.Status)
+		return i18n.Errorf("making the folder %s: %s", u, resp.Status)
 	}
 	w.made[u] = true
 	return nil

@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"clashtraffic/internal/i18n"
 )
 
 // fileVersion 2 added the subscription to the rows; version 1 files read
@@ -330,7 +332,7 @@ func (s *Store) Flush() error {
 	var dirty []string
 	for date, d := range s.open {
 		if d.broken && d.dirty {
-			errs = append(errs, fmt.Errorf("%s 的数据文件无法读取，未保存这一天的新数据", date))
+			errs = append(errs, i18n.Errorf("%s: the data file cannot be read, so the new data of that day was not saved", date))
 		}
 		if d.dirty && !d.broken {
 			dirty = append(dirty, date)
@@ -388,7 +390,7 @@ func (s *Store) Devices() []DeviceInfo {
 // Forget deletes the data of another device from this computer.
 func (s *Store) Forget(id string) error {
 	if id == "" || strings.EqualFold(id, s.Self().ID) || strings.ContainsAny(id, `/\.`) {
-		return fmt.Errorf("不能删除设备 %q", id)
+		return i18n.Errorf("cannot delete the device %q", id)
 	}
 	s.mu.Lock()
 	for k := range s.cache {
@@ -537,7 +539,7 @@ var RemoteLimits = Limits{Bytes: 128 << 20, Rows: 1_000_000, Strings: 500_000, S
 
 var localLimits = Limits{Bytes: math.MaxInt64, Rows: math.MaxInt, Strings: math.MaxInt, String: math.MaxInt}
 
-var errTooLarge = errors.New("解压后超过大小上限")
+var errTooLarge = errors.New("too large once decompressed")
 
 type capped struct {
 	r    io.Reader
@@ -588,10 +590,10 @@ func decodeDay(r io.Reader, lim Limits) (*dayFile, error) {
 		return nil, err
 	}
 	if len(bytes.TrimSpace(rest)) > 0 {
-		return nil, errors.New("数据之后还有多余内容")
+		return nil, errors.New("data after the end")
 	}
 	if _, err := br.ReadByte(); err != io.EOF {
-		return nil, errors.New("压缩数据之后还有多余内容")
+		return nil, errors.New("data after the compressed data")
 	}
 	if _, err := time.Parse(time.DateOnly, f.Day); err != nil {
 		return nil, fmt.Errorf("day %q: %w", f.Day, err)
@@ -605,7 +607,7 @@ func delim(dec *json.Decoder, want json.Delim) error {
 		return err
 	}
 	if d, ok := t.(json.Delim); !ok || d != want {
-		return fmt.Errorf("期望 %q", want)
+		return fmt.Errorf("expected %q", want)
 	}
 	return nil
 }
@@ -617,10 +619,10 @@ func str(dec *json.Decoder, lim Limits) (string, error) {
 	}
 	v, ok := t.(string)
 	if !ok {
-		return "", errors.New("期望字符串")
+		return "", errors.New("expected a string")
 	}
 	if len(v) > lim.String {
-		return "", errors.New("字符串过长")
+		return "", errors.New("string too long")
 	}
 	return v, nil
 }
@@ -638,7 +640,7 @@ func decodeDayJSON(dec *json.Decoder, lim Limits) (*dayFile, error) {
 		}
 		// Each field once: the limits count each list whole.
 		if seen[key] {
-			return nil, fmt.Errorf("字段 %q 重复", key)
+			return nil, fmt.Errorf("field %q repeated", key)
 		}
 		seen[key] = true
 		switch key {
@@ -673,7 +675,7 @@ func decodeStrings(dec *json.Decoder, lim Limits, f *dayFile) error {
 	}
 	for dec.More() {
 		if len(f.Strings) >= lim.Strings {
-			return errors.New("字符串过多")
+			return errors.New("too many strings")
 		}
 		v, err := str(dec, lim)
 		if err != nil {
@@ -690,7 +692,7 @@ func decodeRows(dec *json.Decoder, lim Limits, f *dayFile) error {
 	}
 	for n := 0; dec.More(); n++ {
 		if n >= lim.Rows {
-			return errors.New("行数过多")
+			return errors.New("too many rows")
 		}
 		if err := delim(dec, '['); err != nil {
 			return err
@@ -698,7 +700,7 @@ func decodeRows(dec *json.Decoder, lim Limits, f *dayFile) error {
 		row := make([]int64, 0, 9)
 		for dec.More() {
 			if len(row) == 9 {
-				return errors.New("行过宽")
+				return errors.New("row too wide")
 			}
 			t, err := dec.Token()
 			if err != nil {
@@ -706,7 +708,7 @@ func decodeRows(dec *json.Decoder, lim Limits, f *dayFile) error {
 			}
 			num, ok := t.(json.Number)
 			if !ok {
-				return errors.New("期望数字")
+				return errors.New("expected a number")
 			}
 			v, err := num.Int64()
 			if err != nil {
@@ -731,7 +733,7 @@ func decodePaths(dec *json.Decoder, lim Limits, f *dayFile) error {
 	f.Paths = map[string]string{}
 	for dec.More() {
 		if len(f.Paths) >= lim.Strings {
-			return errors.New("路径过多")
+			return errors.New("too many paths")
 		}
 		k, err := str(dec, lim)
 		if err != nil {
@@ -859,7 +861,7 @@ func ReadLimited(r io.Reader, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	if int64(len(b)) > limit {
-		return nil, fmt.Errorf("文件超过 %d MB 上限", limit>>20)
+		return nil, i18n.Errorf("the file is over the limit of %d MB", limit>>20)
 	}
 	return b, nil
 }

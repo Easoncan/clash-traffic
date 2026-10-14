@@ -4,6 +4,7 @@ import { Card, type PageProps } from "../app";
 import { errorText } from "../lib/hooks";
 import { ago } from "../lib/format";
 import { takeChanged } from "../lib/form";
+import { LANGUAGES, t, tn, tx } from "../lib/i18n";
 import { events, Monitor, Preferences, type AboutInfo, type ClashStatus, type Endpoint, type Settings } from "../mygo";
 
 export function SettingsPage({ status, notify }: PageProps) {
@@ -21,15 +22,26 @@ export function SettingsPage({ status, notify }: PageProps) {
   useEffect(() => {
     Preferences.get().then((s) => (setSaved(s), setForm(s))).catch((err) => notify(errorText(err), "error"));
     Preferences.about().then(setAbout).catch(() => {});
+    // Texts made in the old language go: why updates cannot install, and
+    // the results of the tests.
+    const offLanguage = events.language.on(() => {
+      Preferences.about().then(setAbout).catch(() => {});
+      setClashTest(null);
+      setSyncTest(null);
+    });
     // The update window changes these too, and each check sends them: an
     // unsaved edit of one stays.
-    return events.updates.on((u) => {
+    const offUpdates = events.updates.on((u) => {
       const changed = { autoCheckUpdates: u.autoCheck, autoInstallUpdates: u.autoInstall };
       const before = savedRef.current;
       setAbout((a) => a && { ...a, updates: u });
       setSaved((s) => s && { ...s, ...changed });
       setForm((f) => f && before && takeChanged(f, before, changed));
     });
+    return () => {
+      offLanguage();
+      offUpdates();
+    };
   }, []);
   if (!form || !saved) return null;
 
@@ -56,7 +68,7 @@ export function SettingsPage({ status, notify }: PageProps) {
         setSaved(s);
         setForm(s);
         setPassword(null);
-        notify("设置已保存");
+        notify(t("Settings saved"));
       } catch (err) {
         // Saved, but something did not apply, such as starting at login.
         const s = await Preferences.get();
@@ -70,7 +82,7 @@ export function SettingsPage({ status, notify }: PageProps) {
     run("sync", async () => {
       try {
         await Preferences.testSync(form, password);
-        setSyncTest({ ok: true, msg: "读写正常" });
+        setSyncTest({ ok: true, msg: t("Reads and writes fine") });
       } catch (err) {
         setSyncTest({ ok: false, msg: errorText(err) });
       }
@@ -83,149 +95,165 @@ export function SettingsPage({ status, notify }: PageProps) {
 
   return (
     <div class="settings">
-      <Card title="Clash 连接">
+      <Card title={t("Clash connection")}>
         <div class="status-box">
           <span class={`status-dot ${status?.connected ? "good" : "critical"}`} aria-hidden="true" />
           <div>
-            <strong>{status?.connected ? `已连接 · mihomo ${status.version}` : "未连接"}</strong>
-            <div class="muted small">{status?.connected ? `${status.endpoint}（来源：${status.source}）` : status?.error}</div>
+            <strong>{status?.connected ? `${t("Connected")} · mihomo ${status.version}` : t("Not connected")}</strong>
+            <div class="muted small">{status?.connected ? t("{endpoint} (from {source})", { endpoint: status.endpoint, source: sourceLabel(status.source) }) : status?.error}</div>
           </div>
           <button type="button" class="ghost small" onClick={() => Monitor.reconnect()}>
-            重新连接
+            {t("Reconnect")}
           </button>
         </div>
-        <Field label="连接方式">
+        <Field label={t("Connect")}>
           <div class="segmented">
             <button type="button" class={form.clashMode === "auto" ? "on" : ""} onClick={() => set({ clashMode: "auto" })}>
-              自动检测 Clash Verge
+              {t("Find Clash Verge")}
             </button>
             <button type="button" class={form.clashMode === "manual" ? "on" : ""} onClick={() => set({ clashMode: "manual" })}>
-              手动填写
+              {t("By hand")}
             </button>
           </div>
         </Field>
         {form.clashMode === "manual" ? (
           <>
-            <Field label="控制接口地址" hint={"例如 http://127.0.0.1:9097、unix:///tmp/verge/verge-mihomo.sock 或 \\\\.\\pipe\\verge-mihomo"}>
+            <Field label={t("Controller address")} hint={t("Such as {examples}", { examples: "http://127.0.0.1:9097, unix:///tmp/verge/verge-mihomo.sock, \\\\.\\pipe\\verge-mihomo" })}>
               <input type="text" value={form.clashAddress} placeholder="http://127.0.0.1:9097" onInput={(e) => set({ clashAddress: e.currentTarget.value })} />
             </Field>
-            <Field label="密钥 (secret)" hint="Clash Verge 设置 → 外部控制 中的密钥；使用 socket / 管道时不需要">
+            <Field label={t("Secret")} hint={t("The secret of Clash Verge's external controller setting; not needed with a socket or pipe")}>
               <input type="password" value={form.clashSecret} onInput={(e) => set({ clashSecret: e.currentTarget.value })} />
             </Field>
           </>
         ) : (
-          <Field label="检测顺序" hint="依次尝试：运行中的内核命令行 → Clash Verge 配置文件 → 默认地址">
+          <Field label={t("Search order")} hint={t("Tries in turn: the running core's command line → Clash Verge's config files → the default addresses")}>
             {candidates ? (
               <ul class="plain-list">
                 {candidates.map((c) => (
                   <li key={c.address}>
-                    <code>{c.kind === "unix" ? `unix://${c.address}` : c.address}</code> <span class="muted">（{c.source}）</span>
+                    <code>{c.kind === "unix" ? `unix://${c.address}` : c.address}</code> <span class="muted">({sourceLabel(c.source)})</span>
                   </li>
                 ))}
-                {!candidates.length && <li class="muted">没有找到候选地址，Clash Verge 可能没有运行</li>}
+                {!candidates.length && <li class="muted">{t("No address found: Clash Verge may not be running")}</li>}
               </ul>
             ) : (
               <button type="button" class="link" onClick={() => Monitor.candidates().then(setCandidates)}>
-                查看候选地址
+                {t("Show the addresses")}
               </button>
             )}
           </Field>
         )}
         <div class="row">
           <button type="button" class="ghost" disabled={busy === "clash"} onClick={testClash}>
-            {busy === "clash" ? "测试中…" : "测试连接"}
+            {busy === "clash" ? t("Testing…") : t("Test the connection")}
           </button>
           {clashTest && (
             <span class={clashTest.connected ? "ok-text" : "error-text"}>
-              {clashTest.connected ? `✓ 连接成功：${clashTest.endpoint}（mihomo ${clashTest.version}）` : `✕ ${clashTest.error}`}
+              {clashTest.connected
+                ? `✓ ${t("Connected to {endpoint} (mihomo {version})", { endpoint: clashTest.endpoint, version: clashTest.version })}`
+                : `✕ ${clashTest.error}`}
             </span>
           )}
         </div>
-        <Toggle checked={form.forceProcess} onChange={(v) => set({ forceProcess: v })} label="自动开启进程识别（统计每个应用的流量必须开启）">
-          Clash Verge 默认的 <code>find-process-mode: strict</code> 只在规则用到进程时才识别进程，大部分连接因此不知道来自哪个应用。开启后，本应用会把运行中内核的模式设为 <code>always</code>，Clash Verge 重新加载配置后会自动再设一次。
-          当前内核：<code>{status?.findProcessMode || "未知"}</code>。若想永久生效，可在 Clash Verge「订阅 → 全局扩展覆写配置」中加入 <code>find-process-mode: always</code>。
+        <Toggle checked={form.forceProcess} onChange={(v) => set({ forceProcess: v })} label={t("Turn on process identification (needed to count each app)")}>
+          {tx(
+            "With Clash Verge's default {strict}, the core identifies processes only when a rule needs them, so most connections come from no known app. This turns the running core to {always}, again after Clash Verge reloads its config.",
+            { strict: <code>find-process-mode: strict</code>, always: <code>always</code> },
+          )}{" "}
+          {tx("The core now: {mode}. To keep it for good, add {line} to Clash Verge's global extend config, under Profiles.", {
+            mode: <code>{status?.findProcessMode || t("Unknown")}</code>,
+            line: <code>find-process-mode: always</code>,
+          })}
         </Toggle>
       </Card>
 
-      <Card title="本机">
-        <Field label="设备名称" hint="在多设备统计中显示">
+      <Card title={t("This computer")}>
+        <Field label={t("Device name")} hint={t("Shown in the numbers of every device")}>
           <input type="text" value={form.deviceName} onInput={(e) => set({ deviceName: e.currentTarget.value })} />
         </Field>
-        <Toggle checked={form.openAtLogin} onChange={(v) => set({ openAtLogin: v })} label="开机时启动">
-          在后台持续统计，窗口不会弹出；可从{isMac ? "菜单栏" : "托盘"}图标打开。
+        <Field label={t("Language")}>
+          <select value={form.language} onChange={(e) => set({ language: e.currentTarget.value })}>
+            <option value="">{t("Same as the system")}</option>
+            {LANGUAGES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Toggle checked={form.openAtLogin} onChange={(v) => set({ openAtLogin: v })} label={t("Open at login")}>
+          {isMac ? t("Counts in the background without opening its window; open it from the menu bar icon.") : t("Counts in the background without opening its window; open it from the tray icon.")}
         </Toggle>
-        {isMac && (
-          <Toggle checked={form.traySpeed} onChange={(v) => set({ traySpeed: v })} label="在菜单栏显示下载速度" />
-        )}
+        {isMac && <Toggle checked={form.traySpeed} onChange={(v) => set({ traySpeed: v })} label={t("Show the download speed in the menu bar")} />}
       </Card>
 
-      <Card title="多设备同步">
-        <Toggle checked={form.tailscale} onChange={(v) => set({ tailscale: v })} label="通过 Tailscale 自动发现并同步（推荐）">
-          无需配置：同一 tailnet 中运行 Clash Traffic 的电脑会自动互相发现，每分钟拉取对方的流量统计并合并显示。
-          数据只在你自己的设备之间直接传输（不经第三方），他人共享进 tailnet 的设备无法读取；访问记录不会共享。
+      <Card title={t("Multi-device sync")}>
+        <Toggle checked={form.tailscale} onChange={(v) => set({ tailscale: v })} label={t("Find and sync over Tailscale (recommended)")}>
+          {t("No setup: the computers of the tailnet that run Clash Traffic find each other, fetch each other's numbers every minute and show them together.")}{" "}
+          {t("The data goes straight between your own devices, through no third party; devices shared into the tailnet by others cannot read it; the access log is not shared.")}
         </Toggle>
-        <p class="muted small sub-head">其他同步方式（可选）：设备不同时在线时，可以再通过共享文件夹或 WebDAV 交换数据。</p>
-        <Field label="同步方式">
+        <p class="muted small sub-head">{t("Other ways to sync (optional): for devices that are not online at the same time, exchange the data through a shared folder or WebDAV too.")}</p>
+        <Field label={t("Sync with")}>
           <div class="segmented">
             {(
               [
-                ["off", "关闭"],
-                ["folder", "共享文件夹"],
+                ["off", "Off"],
+                ["folder", "Shared folder"],
                 ["webdav", "WebDAV"],
               ] as const
             ).map(([k, label]) => (
               <button type="button" key={k} class={form.syncKind === k ? "on" : ""} onClick={() => set({ syncKind: k })}>
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
         </Field>
         {form.syncKind === "folder" && (
-          <Field label="文件夹" hint="选择 iCloud 云盘、OneDrive、Dropbox、Syncthing 或网络共享中的文件夹，将在其中创建 ClashTraffic 子文件夹">
+          <Field label={t("Folder")} hint={t("A folder of iCloud Drive, OneDrive, Dropbox, Syncthing or a network share: a ClashTraffic folder is made in it")}>
             <div class="row">
-              <input type="text" value={form.syncFolder} placeholder="未选择" onInput={(e) => set({ syncFolder: e.currentTarget.value })} />
+              <input type="text" value={form.syncFolder} placeholder={t("None chosen")} onInput={(e) => set({ syncFolder: e.currentTarget.value })} />
               <button type="button" class="ghost" onClick={chooseFolder}>
-                选择…
+                {t("Choose…")}
               </button>
             </div>
           </Field>
         )}
         {form.syncKind === "webdav" && (
           <>
-            <Field label="服务器地址" hint="坚果云：https://dav.jianguoyun.com/dav/ ；也支持 Nextcloud、群晖、Alist 等">
+            <Field label={t("Server")} hint={t("Nutstore (坚果云): https://dav.jianguoyun.com/dav/; Nextcloud, Synology, Alist and others work too")}>
               <input type="url" value={form.webdavUrl} onInput={(e) => set({ webdavUrl: e.currentTarget.value })} />
             </Field>
-            <Field label="用户名">
+            <Field label={t("User name")}>
               <input type="text" value={form.webdavUser} autoComplete="off" onInput={(e) => set({ webdavUser: e.currentTarget.value })} />
             </Field>
-            <Field label="密码" hint="坚果云需在「账户信息 → 安全选项」中生成应用密码">
+            <Field label={t("Password")} hint={t("Nutstore needs an app password, made under Account → Security")}>
               <input
                 type="password"
                 value={password ?? ""}
-                placeholder={saved.hasWebdavPassword ? "已保存（留空不修改）" : ""}
+                placeholder={saved.hasWebdavPassword ? t("Saved (leave empty to keep it)") : ""}
                 autoComplete="new-password"
                 onInput={(e) => setPassword(e.currentTarget.value === "" && !saved.hasWebdavPassword ? null : e.currentTarget.value)}
               />
             </Field>
-            <Field label="远端目录">
+            <Field label={t("Folder on the server")}>
               <input type="text" value={form.webdavDir} onInput={(e) => set({ webdavDir: e.currentTarget.value })} />
             </Field>
           </>
         )}
         {form.syncKind !== "off" && (
           <>
-            <Field label="自动同步间隔">
+            <Field label={t("Sync every")}>
               <select value={String(form.syncMinutes)} onChange={(e) => set({ syncMinutes: Number(e.currentTarget.value) })}>
                 {[1, 5, 10, 30, 60].map((m) => (
                   <option key={m} value={m}>
-                    每 {m} 分钟
+                    {tn("Every {n} minutes", m)}
                   </option>
                 ))}
               </select>
             </Field>
             <div class="row">
               <button type="button" class="ghost" disabled={busy === "sync"} onClick={testSync}>
-                {busy === "sync" ? "测试中…" : "测试同步"}
+                {busy === "sync" ? t("Testing…") : t("Test syncing")}
               </button>
               {syncTest && <span class={syncTest.ok ? "ok-text" : "error-text"}>{syncTest.ok ? `✓ ${syncTest.msg}` : `✕ ${syncTest.msg}`}</span>}
             </div>
@@ -233,16 +261,18 @@ export function SettingsPage({ status, notify }: PageProps) {
         )}
       </Card>
 
-      <Card title="数据">
-        <Field label="访问记录保留" hint="每个连接的记录只保存在本机；按小时的流量统计不受影响，永久保留">
+      <Card title={t("Data")}>
+        <Field label={t("Keep the access log")} hint={t("The log of each connection stays on this computer; the hourly numbers are kept for good either way")}>
           <select value={String(form.sessionDays)} onChange={(e) => set({ sessionDays: Number(e.currentTarget.value) })}>
-            {[
-              [7, "7 天"],
-              [30, "30 天"],
-              [90, "90 天"],
-              [365, "1 年"],
-              [0, "永久"],
-            ].map(([v, label]) => (
+            {(
+              [
+                [7, tn("{n} days", 7)],
+                [30, tn("{n} days", 30)],
+                [90, tn("{n} days", 90)],
+                [365, t("1 year")],
+                [0, t("Forever")],
+              ] as const
+            ).map(([v, label]) => (
               <option key={v} value={v}>
                 {label}
               </option>
@@ -250,56 +280,62 @@ export function SettingsPage({ status, notify }: PageProps) {
           </select>
         </Field>
         <dl class="kv">
-          <dt>数据目录</dt>
+          <dt>{t("Data folder")}</dt>
           <dd>
             <code>{about?.dataDir}</code>{" "}
             <button type="button" class="link" onClick={() => Preferences.openDataFolder().catch((err) => notify(errorText(err), "error"))}>
-              打开
+              {t("Show")}
             </button>
           </dd>
-          <dt>设备 ID</dt>
+          <dt>{t("Device ID")}</dt>
           <dd>
             <code>{about?.deviceId}</code>
           </dd>
         </dl>
       </Card>
 
-      <Card title="软件更新">
+      <Card title={t("Software update")}>
         <div class="status-box">
           <div>
             <strong>
-              Clash Traffic {about?.version || "开发版"} <span class="muted small">{about?.platform}</span>
+              Clash Traffic {about?.version || t("development build")} <span class="muted small">{about?.platform}</span>
             </strong>
-            <div class="muted small">{updates?.enabled ? `上次检查：${ago(updates.lastCheck)}` : updates?.reason}</div>
+            <div class="muted small">{updates?.enabled ? t("Last checked: {ago}", { ago: ago(updates.lastCheck) }) : updates?.reason}</div>
           </div>
           <button type="button" class="ghost small" onClick={() => Preferences.checkForUpdates().catch((err) => notify(errorText(err), "error"))}>
-            检查更新…
+            {t("Check for updates…")}
           </button>
         </div>
-        <Toggle checked={form.autoCheckUpdates} disabled={!canUpdate} onChange={(v) => set({ autoCheckUpdates: v })} label="自动检查更新">
-          每天从 GitHub 检查一次新版本，有新版本时显示更新说明，由你决定是否安装。
+        <Toggle checked={form.autoCheckUpdates} disabled={!canUpdate} onChange={(v) => set({ autoCheckUpdates: v })} label={t("Check for updates automatically")}>
+          {t("Looks for a new version on GitHub once a day and shows its release notes; you choose whether to install it.")}
         </Toggle>
         <Toggle
           checked={form.autoInstallUpdates}
           disabled={!canUpdate || !form.autoCheckUpdates}
           onChange={(v) => set({ autoInstallUpdates: v })}
-          label="自动下载并安装更新"
+          label={t("Download and install updates automatically")}
         >
-          不再询问，在后台下载并安装新版本，下次启动时生效。
+          {t("Without asking, downloads and installs new versions in the background; they run the next time the app starts.")}
         </Toggle>
       </Card>
 
       <div class={`savebar${dirty ? " show" : ""}`}>
-        <span>有未保存的修改</span>
+        <span>{t("Unsaved changes")}</span>
         <button type="button" class="ghost" onClick={() => (setForm(saved), setPassword(null))}>
-          还原
+          {t("Revert")}
         </button>
         <button type="button" class="primary" disabled={busy === "save"} onClick={save}>
-          {busy === "save" ? "保存中…" : "保存"}
+          {busy === "save" ? t("Saving…") : t("Save")}
         </button>
       </div>
     </div>
   );
+}
+
+// Where Go found a controller, in English, or the name of a config file.
+const SOURCES = ["default", "the running core", "set by hand"];
+function sourceLabel(source: string): string {
+  return SOURCES.includes(source) ? t(source) : source;
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ComponentChildren }) {

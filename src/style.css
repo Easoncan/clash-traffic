@@ -1,6 +1,6 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --fs: 13px;
   font-size: calc(var(--fs) * var(--mygo-text-scale, 1));
 
@@ -30,6 +30,20 @@
   --error-text: #b42323;
   --warning-bg: #fff6e0;
   --error-bg: #fdecec;
+}
+
+/* Han characters take the shapes of the language: its fonts come first. */
+:root:lang(zh-Hans) {
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+:root:lang(zh-Hant) {
+  font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+}
+:root:lang(ja) {
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", Meiryo, "Segoe UI", sans-serif;
+}
+:root:lang(ko) {
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,6 +95,12 @@ code {
   padding: 1px 5px;
   border-radius: 4px;
   word-break: break-all;
+}
+/* Settings such as find-process-mode: always stay whole in sentences. */
+.hint code,
+.banner code {
+  word-break: normal;
+  white-space: nowrap;
 }
 
 .muted {
@@ -435,8 +455,11 @@ button.link {
   padding: 14px 16px 16px;
   min-width: 0;
 }
+/* A title keeps its room: the tools wrap under it when longer texts, as
+   in Russian, leave too little. */
 .card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
@@ -447,13 +470,14 @@ button.link {
   font-size: 1rem;
   font-weight: 600;
   flex: 1;
-  min-width: 0;
+  min-width: min(180px, 100%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .card-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }

@@ -161,6 +161,7 @@ export interface Query {
   chain: string;
   groupDomain: boolean;
   search: string;
+  searchAlso: string[];
   limit: number;
   bucket: string;
   route: Route;
@@ -241,6 +242,7 @@ export interface SessionQuery {
   noSub: boolean;
   groupDomain: boolean;
   search: string;
+  searchAlso: string[];
   offset: number;
   limit: number;
 }
@@ -273,6 +275,11 @@ export interface Settings {
    * that run the app, found on their own.
    */
   tailscale: boolean;
+  /**
+   * Language is the language of the app, a tag of i18n.Languages; empty
+   * follows the system.
+   */
+  language: string;
   /** Not stored in the settings file. */
   openAtLogin: boolean;
   hasWebdavPassword: boolean;
@@ -424,6 +431,10 @@ export const Preferences = {
   get(): Promise<Settings> {
     return call("Preferences.Get");
   },
+  /** Language returns the language the app shows, a tag of i18n.Languages. */
+  language(): Promise<string> {
+    return call("Preferences.Language");
+  },
   /** OpenDataFolder shows the data directory in the file manager. */
   openDataFolder(): Promise<void> {
     return call("Preferences.OpenDataFolder");
@@ -461,6 +472,8 @@ export const Sync = {
 
 /** Events sent by the Go side. Subscribe with `events.name.on(listener)`. */
 export const events = {
+  /** LanguageEvent tells the pages the language of the app once it changed. */
+  language: event<string>("language"),
   /** LiveEvent carries the core's open connections, every second. */
   live: event<Live>("live"),
   /** StatusEvent is sent when the connection to the core changes. */

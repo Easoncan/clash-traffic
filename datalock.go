@@ -2,10 +2,11 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"clashtraffic/internal/i18n"
 )
 
 // errLocked is returned by tryLock while another process holds the lock.
@@ -35,7 +36,7 @@ func lockDataDir(dir string, wait time.Duration) (*os.File, error) {
 		}
 		if errors.Is(err, errLocked) && time.Now().After(deadline) {
 			f.Close()
-			return nil, fmt.Errorf("等待 %s 后仍被占用", wait)
+			return nil, i18n.Errorf("still in use after %s", wait)
 		}
 		if !errors.Is(err, errLocked) {
 			f.Close()

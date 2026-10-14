@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"clashtraffic/internal/i18n"
 )
 
 // Kind is how the controller is reached.
@@ -31,7 +34,7 @@ type Endpoint struct {
 	Kind    Kind   `json:"kind"`
 	Address string `json:"address"` // socket path, pipe name or base URL
 	Secret  string `json:"-"`
-	Source  string `json:"source"` // where the endpoint was found
+	Source  string `json:"source"` // where the endpoint was found: "default", "the running core", "set by hand" (in English, which the page translates) or a config file
 }
 
 func (e Endpoint) String() string {
@@ -50,22 +53,22 @@ func ParseEndpoint(s, secret string) (Endpoint, error) {
 	s = strings.TrimSpace(s)
 	switch {
 	case s == "":
-		return Endpoint{}, fmt.Errorf("地址为空")
+		return Endpoint{}, errors.New(i18n.T("The address is empty"))
 	case strings.HasPrefix(s, "unix://"):
-		return Endpoint{Kind: KindUnix, Address: strings.TrimPrefix(s, "unix://"), Secret: secret, Source: "手动"}, nil
+		return Endpoint{Kind: KindUnix, Address: strings.TrimPrefix(s, "unix://"), Secret: secret, Source: "set by hand"}, nil
 	case strings.HasPrefix(s, `\\.\pipe\`), strings.HasPrefix(s, "pipe:"):
-		return Endpoint{Kind: KindPipe, Address: strings.TrimPrefix(s, "pipe:"), Secret: secret, Source: "手动"}, nil
+		return Endpoint{Kind: KindPipe, Address: strings.TrimPrefix(s, "pipe:"), Secret: secret, Source: "set by hand"}, nil
 	case strings.HasPrefix(s, "/"):
-		return Endpoint{Kind: KindUnix, Address: s, Secret: secret, Source: "手动"}, nil
+		return Endpoint{Kind: KindUnix, Address: s, Secret: secret, Source: "set by hand"}, nil
 	}
 	if !strings.Contains(s, "://") {
 		s = "http://" + s
 	}
 	u, err := url.Parse(s)
 	if err != nil || u.Host == "" {
-		return Endpoint{}, fmt.Errorf("无法识别的地址 %q", s)
+		return Endpoint{}, i18n.Errorf("cannot read the address %q", s)
 	}
-	return Endpoint{Kind: KindHTTP, Address: strings.TrimRight(u.String(), "/"), Secret: secret, Source: "手动"}, nil
+	return Endpoint{Kind: KindHTTP, Address: strings.TrimRight(u.String(), "/"), Secret: secret, Source: "set by hand"}, nil
 }
 
 // Metadata describes the two ends of a connection.
@@ -172,7 +175,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("密钥 (secret) 错误")
+		return errors.New(i18n.T("Wrong secret"))
 	}
 	if resp.StatusCode/100 != 2 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
@@ -195,7 +198,7 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if v.Version == "" {
-		return "", fmt.Errorf("不是 Clash 控制接口")
+		return "", errors.New(i18n.T("Not a Clash controller"))
 	}
 	return v.Version, nil
 }

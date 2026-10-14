@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"net"
+
+	"clashtraffic/internal/i18n"
 )
 
 func dialPipe(context.Context, string) (net.Conn, error) {
-	return nil, errors.New("命名管道仅在 Windows 上可用")
+	return nil, errors.New(i18n.T("Named pipes are only on Windows"))
 }

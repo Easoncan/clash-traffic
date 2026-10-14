@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 
 	"clashtraffic/internal/clash"
 	"clashtraffic/internal/collector"
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/mesh"
 	"clashtraffic/internal/sessions"
 	"clashtraffic/internal/store"
@@ -96,7 +96,7 @@ func (c *Core) Init(dir string, lockErr error) error {
 	if lockErr != nil {
 		// Another instance still writes there: two would overwrite each
 		// other's counters.
-		return fmt.Errorf("数据目录正被另一个 Clash Traffic 使用（%v）。请等它完全退出后再打开", lockErr)
+		return i18n.Errorf("Another Clash Traffic uses the data folder (%v). Open this one once it has quit.", lockErr)
 	}
 	c.dir = dir
 	c.settingsPath = filepath.Join(dir, "settings.json")
@@ -109,16 +109,17 @@ func (c *Core) Init(dir string, lockErr error) error {
 		log.Println("settings:", err)
 	}
 	c.file = f
+	i18n.Set(languageOf(f.Settings))
 	c.store, err = store.Open(filepath.Join(dir, "data"), store.DeviceInfo{
 		ID: f.DeviceID, Name: f.DeviceName, OS: runtime.GOOS, Arch: runtime.GOARCH, Version: mygo.App.Version(),
 	})
 	if err != nil {
-		return fmt.Errorf("打开数据目录: %w", err)
+		return i18n.Errorf("opening the data folder: %w", err)
 	}
 	c.syncer = syncer.New(c.store.Root(), f.DeviceID, filepath.Join(dir, "sync-state.json"))
 	c.sessions, err = sessions.Open(filepath.Join(dir, "sessions"))
 	if err != nil {
-		return fmt.Errorf("打开访问记录目录: %w", err)
+		return i18n.Errorf("opening the access log folder: %w", err)
 	}
 	c.coll = collector.New(c.store)
 	c.coll.OnClose = c.sessions.Add
@@ -183,6 +184,20 @@ func (c *Core) settings() settingsFile {
 	return c.file
 }
 
+// relanguage makes the messages of the statuses again, in the language the
+// app now shows: those of a failed connection, sync or Tailscale scan.
+func (c *Core) relanguage() {
+	if !c.Status().Connected {
+		c.Reconnect()
+	}
+	if c.SyncStatus().LastError != "" {
+		c.TriggerSync()
+	}
+	if c.settings().Tailscale && c.mesh != nil {
+		c.mesh.Trigger()
+	}
+}
+
 // Reconnect drops the connection to the core, to find it again.
 func (c *Core) Reconnect() {
 	select {
@@ -238,7 +253,7 @@ func (c *Core) pollLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-c.reconnect:
-			drop("正在重新连接…")
+			drop(i18n.T("Reconnecting…"))
 			nextDetect, backoff = time.Time{}, time.Second
 		case <-ticker.C:
 		}
@@ -287,7 +302,7 @@ func (c *Core) pollLoop(ctx context.Context) {
 				return
 			}
 			if failures++; failures >= 3 {
-				drop("与 Clash 的连接中断: " + err.Error())
+				drop(i18n.T("Lost the connection to Clash: %v", err))
 			}
 			continue
 		}
@@ -321,7 +336,7 @@ func connectWith(ctx context.Context, mode ClashMode, address, secret string) (c
 	defer cancel()
 	v, err := cl.Version(tctx)
 	if err != nil {
-		return ep, "", fmt.Errorf("连接 %s 失败: %w", ep, err)
+		return ep, "", i18n.Errorf("connecting to %s: %w", ep, err)
 	}
 	return ep, v, nil
 }
@@ -431,7 +446,7 @@ func (c *Core) CloseConnection(id string) error {
 	client := c.client
 	c.mu.Unlock()
 	if client == nil {
-		return errors.New("未连接到 Clash")
+		return errors.New(i18n.T("Not connected to Clash"))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -478,7 +493,7 @@ func backendOf(f settingsFile) (syncer.Backend, error) {
 	switch f.SyncKind {
 	case SyncFolder:
 		if strings.TrimSpace(f.SyncFolder) == "" {
-			return nil, errors.New("请选择同步文件夹")
+			return nil, errors.New(i18n.T("Choose the sync folder"))
 		}
 		dir := filepath.Clean(f.SyncFolder)
 		if filepath.Base(dir) != "ClashTraffic" {
@@ -487,11 +502,11 @@ func backendOf(f settingsFile) (syncer.Backend, error) {
 		return &syncer.Folder{Path: dir}, nil
 	case SyncWebDAV:
 		if strings.TrimSpace(f.WebDAVURL) == "" {
-			return nil, errors.New("请填写 WebDAV 地址")
+			return nil, errors.New(i18n.T("Fill in the WebDAV address"))
 		}
 		return syncer.NewWebDAV(strings.TrimSpace(f.WebDAVURL), f.WebDAVUser, f.webdavPassword(), f.WebDAVDir), nil
 	}
-	return nil, errors.New("未开启同步")
+	return nil, errors.New(i18n.T("Syncing is off"))
 }
 
 // RunSync syncs with the other devices now.
@@ -580,6 +595,9 @@ func (c *Core) SaveSettings(in Settings, password *string) (Settings, error) {
 	if in.WebDAVDir == "" {
 		in.WebDAVDir = "ClashTraffic"
 	}
+	if !i18n.Supported(in.Language) {
+		in.Language = ""
+	}
 	f.Settings = in
 	if password != nil {
 		f.setWebDAVPassword(*password)
@@ -596,7 +614,7 @@ func (c *Core) SaveSettings(in Settings, password *string) (Settings, error) {
 	setUpdatePrefs(in.AutoCheckUpdates, in.AutoInstallUpdates)
 	if in.OpenAtLogin != mygo.App.OpenAtLogin() {
 		if err := mygo.App.SetOpenAtLogin(in.OpenAtLogin); err != nil {
-			errs = append(errs, fmt.Errorf("开机启动: %w", err))
+			errs = append(errs, i18n.Errorf("opening at login: %w", err))
 		}
 	}
 	if in.DeviceName != old.DeviceName {
@@ -616,6 +634,9 @@ func (c *Core) SaveSettings(in Settings, password *string) (Settings, error) {
 	}
 	if in.Tailscale != old.Tailscale {
 		c.mesh.Trigger()
+	}
+	if in.Language != old.Language {
+		setLanguage(languageOf(in))
 	}
 	if in.SessionDays != old.SessionDays {
 		if err := c.sessions.Cleanup(in.SessionDays); err != nil {

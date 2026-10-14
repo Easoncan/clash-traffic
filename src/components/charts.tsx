@@ -3,11 +3,14 @@ import type { ComponentChildren } from "preact";
 import type { Item, Point, RatePoint } from "../mygo";
 import { useWidth } from "../lib/hooks";
 import { byteTicks, bytes, clock, dayLabel, hourLabel, percent, rate } from "../lib/format";
+import { t, tn } from "../lib/i18n";
+import { nameLabel } from "../lib/names";
 
-/** The two series every chart shows, with their palette slots. */
+/** The two series every chart shows, with their palette slots; t() shows
+ * their labels. */
 export const SERIES = {
-  down: { label: "下载", cls: "s-down" },
-  up: { label: "上传", cls: "s-up" },
+  down: { label: "Download", cls: "s-down" },
+  up: { label: "Upload", cls: "s-up" },
 } as const;
 
 export function Legend({ kind = "rect" }: { kind?: "rect" | "line" }) {
@@ -16,7 +19,7 @@ export function Legend({ kind = "rect" }: { kind?: "rect" | "line" }) {
       {(["down", "up"] as const).map((k) => (
         <span class="legend-item" key={k}>
           <span class={`key key-${kind} ${SERIES[k].cls}`} />
-          {SERIES[k].label}
+          {t(SERIES[k].label)}
         </span>
       ))}
     </div>
@@ -42,7 +45,7 @@ function TipRow({ k, value }: { k: "down" | "up"; value: string }) {
     <div class="tip-row">
       <span class={`key key-line ${SERIES[k].cls}`} />
       <strong>{value}</strong>
-      <span class="muted">{SERIES[k].label}</span>
+      <span class="muted">{t(SERIES[k].label)}</span>
     </div>
   );
 }
@@ -69,7 +72,7 @@ export function ColumnChart({ points, bucket, height = 230 }: { points: Point[];
   return (
     <div class="chart" ref={ref} style={{ height: `${height}px` }} onPointerLeave={() => setHover(null)}>
       {width > 0 && (
-        <svg width={width} height={height} role="img" aria-label="流量趋势柱状图">
+        <svg width={width} height={height} role="img" aria-label={t("Traffic over time, as columns")}>
           {ticks.map((t) => (
             <g key={t}>
               <line class="grid" x1={PAD.left} x2={width - PAD.right} y1={base - h(t)} y2={base - h(t)} />
@@ -108,7 +111,7 @@ export function ColumnChart({ points, bucket, height = 230 }: { points: Point[];
               width={band}
               height={plotH}
               tabIndex={0}
-              aria-label={`${label(p.t)} 下载 ${bytes(p.down)} 上传 ${bytes(p.up)}`}
+              aria-label={t("{time}: download {down}, upload {up}", { time: label(p.t), down: bytes(p.down), up: bytes(p.up) })}
               onPointerEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
@@ -161,7 +164,7 @@ export function RateChart({ points, height = 190, span = 300_000 }: { points: Ra
   return (
     <div class="chart" ref={ref} style={{ height: `${height}px` }} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
       {width > 0 && (
-        <svg width={width} height={height} role="img" aria-label="实时速度折线图">
+        <svg width={width} height={height} role="img" aria-label={t("Live speed, as lines")}>
           {ticks.map((t) => (
             <g key={t}>
               <line class="grid" x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} />
@@ -206,9 +209,9 @@ export function BarList({
   total,
   selected,
   onSelect,
-  empty = "暂无数据",
+  empty,
   describe,
-  labelOf = (i) => i.name || "—",
+  labelOf = (i) => nameLabel(i.name) || "—",
   canSelect = () => true,
 }: {
   items: Item[];
@@ -222,7 +225,7 @@ export function BarList({
   /** Whether picking an item filters by it. */
   canSelect?: (item: Item) => boolean;
 }) {
-  if (!items.length) return <div class="empty">{empty}</div>;
+  if (!items.length) return <div class="empty">{empty ?? t("No data yet")}</div>;
   const max = items.reduce((m, i) => Math.max(m, i.up + i.down), 0) || 1;
   return (
     <ul class="barlist">
@@ -235,7 +238,7 @@ export function BarList({
               class={`bar-row${selected === it.name ? " selected" : ""}`}
               disabled={!onSelect || !canSelect(it)}
               onClick={() => onSelect?.(it.name)}
-              title={`${describe ? describe(it) + "\n" : ""}下载 ${bytes(it.down)} · 上传 ${bytes(it.up)} · ${it.conns} 个连接`}
+              title={`${describe ? describe(it) + "\n" : ""}${t("Download {down} · upload {up}", { down: bytes(it.down), up: bytes(it.up) })} · ${tn("{n} connections", it.conns)}`}
             >
               <span class="bar-name">{labelOf(it)}</span>
               <span class="bar-value">{bytes(sum)}</span>

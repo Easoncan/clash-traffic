@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"clashtraffic/internal/i18n"
 )
 
 // Detect finds the controller of the running Clash Verge core: it tries
@@ -36,9 +38,9 @@ func Detect(ctx context.Context) (Endpoint, string, error) {
 		}
 	}
 	if len(cands) == 0 {
-		return Endpoint{}, "", errors.New("没有找到 Clash Verge 的控制接口，请确认 Clash Verge 正在运行")
+		return Endpoint{}, "", errors.New(i18n.T("Clash Verge's controller was not found: make sure Clash Verge is running"))
 	}
-	return Endpoint{}, "", fmt.Errorf("无法连接 Clash 控制接口（尝试了 %d 个地址）: %s", len(cands), strings.Join(errs, "; "))
+	return Endpoint{}, "", i18n.Errorf("cannot connect to the Clash controller (tried %d addresses): %s", len(cands), strings.Join(errs, "; "))
 }
 
 // Candidates lists the controllers to try, most likely first.
@@ -76,15 +78,15 @@ func Candidates() []Endpoint {
 	}
 	switch runtime.GOOS {
 	case "windows":
-		add(Endpoint{Kind: KindPipe, Address: `\\.\pipe\verge-mihomo`, Source: "默认"})
+		add(Endpoint{Kind: KindPipe, Address: `\\.\pipe\verge-mihomo`, Source: "default"})
 	default:
-		add(Endpoint{Kind: KindUnix, Address: fmt.Sprintf("/var/run/clash-verge-service/users/%d/verge-mihomo.sock", os.Getuid()), Source: "默认"})
-		add(Endpoint{Kind: KindUnix, Address: "/tmp/verge/verge-mihomo.sock", Source: "默认"})
-		add(Endpoint{Kind: KindUnix, Address: filepath.Join(os.TempDir(), "verge-mihomo.sock"), Source: "默认"})
-		add(Endpoint{Kind: KindUnix, Address: "/tmp/verge-mihomo.sock", Source: "默认"})
+		add(Endpoint{Kind: KindUnix, Address: fmt.Sprintf("/var/run/clash-verge-service/users/%d/verge-mihomo.sock", os.Getuid()), Source: "default"})
+		add(Endpoint{Kind: KindUnix, Address: "/tmp/verge/verge-mihomo.sock", Source: "default"})
+		add(Endpoint{Kind: KindUnix, Address: filepath.Join(os.TempDir(), "verge-mihomo.sock"), Source: "default"})
+		add(Endpoint{Kind: KindUnix, Address: "/tmp/verge-mihomo.sock", Source: "default"})
 	}
-	add(Endpoint{Kind: KindHTTP, Address: "http://127.0.0.1:9097", Secret: fileSecret, Source: "默认"})
-	add(Endpoint{Kind: KindHTTP, Address: "http://127.0.0.1:9090", Secret: fileSecret, Source: "默认"})
+	add(Endpoint{Kind: KindHTTP, Address: "http://127.0.0.1:9097", Secret: fileSecret, Source: "default"})
+	add(Endpoint{Kind: KindHTTP, Address: "http://127.0.0.1:9090", Secret: fileSecret, Source: "default"})
 	return out
 }
 
@@ -111,11 +113,11 @@ func fromProcesses() []Endpoint {
 		}
 		secret := flagValue(line, "-secret")
 		if v := flagValue(line, "-ext-ctl-unix"); v != "" {
-			eps = append(eps, Endpoint{Kind: KindUnix, Address: v, Source: "运行中的内核"})
+			eps = append(eps, Endpoint{Kind: KindUnix, Address: v, Source: "the running core"})
 		}
 		if v := flagValue(line, "-ext-ctl"); v != "" {
 			if ep, err := ParseEndpoint(v, secret); err == nil {
-				ep.Source = "运行中的内核"
+				ep.Source = "the running core"
 				eps = append(eps, ep)
 			}
 		}

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Card, FilterBar, ROUTE_LABEL, subLabel, type PageProps } from "../app";
+import { Card, FilterBar, type PageProps } from "../app";
 import { errorText } from "../lib/hooks";
 import { bytes, count, dateTime, duration } from "../lib/format";
+import { lang, t, tn } from "../lib/i18n";
+import { nameLabel, routeLabel, searchAliases, subLabel } from "../lib/names";
 import { resolve } from "../lib/range";
 import { events, Traffic, type DeviceInfo, type Session, type SessionPage } from "../mygo";
 
@@ -19,8 +21,8 @@ export function RecordsPage({ filters, setFilters }: PageProps) {
   const seq = useRef(0);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search), 250);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(timer);
   }, [search]);
   useEffect(() => {
     Traffic.devices()
@@ -49,6 +51,7 @@ export function RecordsPage({ filters, setFilters }: PageProps) {
           noSub: filters.sub === "",
           groupDomain: filters.groupDomain,
           search: debounced,
+          searchAlso: searchAliases(debounced),
           offset: 0,
           limit,
         });
@@ -78,24 +81,32 @@ export function RecordsPage({ filters, setFilters }: PageProps) {
   return (
     <>
       <FilterBar filters={filters} setFilters={setFilters} hide={["device"]} />
-      {otherDevice && <div class="banner warning">访问记录只保存在各自的电脑上，这里显示的是本机（{self?.name}）的记录。</div>}
-      {error && <div class="banner error">读取访问记录失败：{error}</div>}
+      {otherDevice && (
+        <div class="banner warning">{t("Each computer keeps its own access log: this is the log of this computer ({name}).", { name: self?.name ?? "" })}</div>
+      )}
+      {error && <div class="banner error">{t("Could not read the access log: {error}", { error })}</div>}
       <Card
         class={loading && page ? "refreshing" : ""}
-        title={page ? `${count(page.total)} 个连接 · 下载 ${bytes(page.down)} · 上传 ${bytes(page.up)}` : "访问记录"}
-        extra={<input type="search" class="search wide" placeholder="搜索应用、地址、IP、节点、规则" value={search} onInput={(e) => setSearch(e.currentTarget.value)} />}
+        title={
+          page
+            ? `${tn("{n} connections", page.total, { n: count(page.total) })} · ${t("Download {down} · upload {up}", { down: bytes(page.down), up: bytes(page.up) })}`
+            : t("Access log")
+        }
+        extra={
+          <input type="search" class="search wide" placeholder={t("Search apps, hosts, IPs, nodes, rules")} value={search} onInput={(e) => setSearch(e.currentTarget.value)} />
+        }
       >
         <div class="table-wrap records">
           <table class="table">
             <thead>
               <tr>
-                <th class="col-time">开始时间</th>
-                <th class="num col-dur">时长</th>
-                <th class="col-app">应用</th>
-                <th class="col-host">地址</th>
-                <th class="col-chain">节点 / 规则</th>
-                <th class="num">下载</th>
-                <th class="num">上传</th>
+                <th class="col-time">{t("Started")}</th>
+                <th class="num col-dur">{t("Duration")}</th>
+                <th class="col-app">{t("App")}</th>
+                <th class="col-host">{t("Host")}</th>
+                <th class="col-chain">{t("Node / rule")}</th>
+                <th class="num">{t("Download")}</th>
+                <th class="num">{t("Upload")}</th>
               </tr>
             </thead>
             <tbody>
@@ -104,19 +115,21 @@ export function RecordsPage({ filters, setFilters }: PageProps) {
               ))}
             </tbody>
           </table>
-          {page && !items.length && <div class="empty">{debounced || filters.app || filters.host || filters.chain ? "没有匹配的连接" : "这段时间没有访问记录"}</div>}
+          {page && !items.length && (
+            <div class="empty">{debounced || filters.app || filters.host || filters.chain ? t("No matching connections") : t("No connections in this period")}</div>
+          )}
           {page && page.total > items.length && (
             <div class="more">
               <button type="button" class="ghost" onClick={() => setLimit(limit + PAGE)}>
-                再显示 {Math.min(PAGE, page.total - items.length)} 条（共 {count(page.total)} 条）
+                {t("Show {n} more ({total} in all)", { n: Math.min(PAGE, page.total - items.length), total: count(page.total) })}
               </button>
             </div>
           )}
         </div>
         <p class="hint footnote">
-          记录本机每个连接的开始时间、应用、目标地址、节点和流量，只保存在本机，不参与多设备同步。
-          {page?.since ? ` 最早的记录在 ${new Date(page.since).toLocaleDateString("zh-CN")}。` : ""}
-          在两次采样（1 秒）之间开始又结束的极短连接不会出现在这里；连接的字节数是最后一次看到它时的数字。
+          {t("The start, app, target, node and traffic of every connection of this computer. They stay on this computer and are not synced.")}
+          {page?.since ? " " + t("The oldest is from {date}.", { date: new Date(page.since).toLocaleDateString(lang()) }) : ""}{" "}
+          {t("Connections that start and end between two samples (a second apart) do not show; the bytes of a connection are those last seen.")}
         </p>
       </Card>
     </>
@@ -124,13 +137,14 @@ export function RecordsPage({ filters, setFilters }: PageProps) {
 }
 
 function Row({ s, onApp, onHost }: { s: Session; onApp: (app: string) => void; onHost: (host: string) => void }) {
+  const end = s.open ? t("Open") : s.cut ? t("After {time} (the app was not running)", { time: dateTime(s.end) }) : dateTime(s.end);
   const detail = [
-    s.route === "proxy" && `订阅：${subLabel(s.sub)}`,
-    s.path && `路径：${s.path}`,
-    s.process && s.process !== s.app && `进程：${s.process}`,
-    s.source && `来源：${s.source}`,
-    s.inbound && `入站：${s.inbound}`,
-    `结束：${s.open ? "进行中" : s.cut ? `${dateTime(s.end)} 之后（应用未运行）` : dateTime(s.end)}`,
+    s.route === "proxy" && t("Subscription: {value}", { value: subLabel(s.sub) }),
+    s.path && t("Path: {value}", { value: s.path }),
+    s.process && s.process !== s.app && t("Process: {value}", { value: s.process }),
+    s.source && t("Source: {value}", { value: s.source }),
+    s.inbound && t("Inbound: {value}", { value: s.inbound }),
+    t("Ended: {value}", { value: end }),
   ]
     .filter(Boolean)
     .join("\n");
@@ -138,10 +152,10 @@ function Row({ s, onApp, onHost }: { s: Session; onApp: (app: string) => void; o
     <tr title={detail}>
       <td class="col-time">
         <div>{dateTime(s.start)}</div>
-        {s.open && <span class="badge live">进行中</span>}
+        {s.open && <span class="badge live">{t("Open")}</span>}
         {s.cut && (
-          <span class="badge" title="应用退出时这个连接还在进行，再次打开时它已结束；结束时间和最后的流量未知">
-            应用退出时仍在进行
+          <span class="badge" title={t("The connection was open when the app quit and had ended when it started again: when it ended and its last traffic are unknown.")}>
+            {t("Open when the app quit")}
           </span>
         )}
       </td>
@@ -151,13 +165,13 @@ function Row({ s, onApp, onHost }: { s: Session; onApp: (app: string) => void; o
       </td>
       <td class="name-cell col-app">
         <button type="button" class="cell-link name" onClick={() => onApp(s.app)}>
-          {s.app}
+          {nameLabel(s.app)}
         </button>
         {s.process && s.process !== s.app && <div class="detail">{s.process}</div>}
       </td>
       <td class="name-cell col-host">
         <button type="button" class="cell-link name" onClick={() => onHost(s.host)}>
-          {s.host}
+          {nameLabel(s.host)}
         </button>
         <div class="detail">
           {s.network.toUpperCase()}
@@ -166,7 +180,7 @@ function Row({ s, onApp, onHost }: { s: Session; onApp: (app: string) => void; o
       </td>
       <td class="name-cell col-chain">
         <div class="name">
-          <span class={`route-tag ${s.route}`}>{s.route === "proxy" && s.sub ? s.sub : (ROUTE_LABEL[s.route] ?? s.route)}</span>
+          <span class={`route-tag ${s.route}`}>{s.route === "proxy" && s.sub ? nameLabel(s.sub) : routeLabel(s.route)}</span>
           {s.chains || s.chain}
         </div>
         <div class="detail">{s.rule}</div>

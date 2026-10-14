@@ -1,3 +1,5 @@
+import { lang, t } from "./i18n";
+
 const UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
 
 /** Bytes in binary units: 1.23 GB, 45.6 MB, 512 B. */
@@ -19,10 +21,10 @@ export function rate(n: number): string {
   return `${bytes(n)}/s`;
 }
 
-/** A count: 1,284 · 12.9 万. */
+/** A count: 1,284 · 129K · 12.9万. */
 export function count(n: number): string {
-  if (n >= 100_000) return `${(n / 10_000).toFixed(1)} 万`;
-  return n.toLocaleString("zh-CN");
+  if (n >= 100_000) return new Intl.NumberFormat(lang(), { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  return n.toLocaleString(lang());
 }
 
 /** A share of a total: 12.3%. */
@@ -33,32 +35,33 @@ export function percent(part: number, total: number): string {
   return `${p.toFixed(p < 10 ? 1 : 0)}%`;
 }
 
-/** A duration: 3 秒, 12 分 5 秒, 2 小时 3 分. */
+/** A duration: 3 s, 12 min 5 s, 2 h 3 min, 1 d 4 h. */
 export function duration(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
-  if (s < 60) return `${s} 秒`;
+  if (s < 60) return t("{s} s", { s });
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} 分 ${s % 60} 秒`;
+  if (m < 60) return t("{m} min {s} s", { m, s: s % 60 });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} 小时 ${m % 60} 分`;
-  return `${Math.floor(h / 24)} 天 ${h % 24} 小时`;
+  if (h < 24) return t("{h} h {m} min", { h, m: m % 60 });
+  return t("{d} d {h} h", { d: Math.floor(h / 24), h: h % 24 });
 }
 
-/** How long ago: 刚刚, 5 分钟前, 3 小时前, 10/12 14:03. */
+/** How long ago: just now, 5 minutes ago, 3 hours ago, 10/12 14:03. */
 export function ago(ms: number): string {
-  if (!ms) return "从未";
+  if (!ms) return t("Never");
   const d = Date.now() - ms;
-  if (d < 60_000) return "刚刚";
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} 分钟前`;
-  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} 小时前`;
+  if (d < 60_000) return t("Just now");
+  const rtf = new Intl.RelativeTimeFormat(lang(), { numeric: "always" });
+  if (d < 3_600_000) return rtf.format(-Math.floor(d / 60_000), "minute");
+  if (d < 86_400_000) return rtf.format(-Math.floor(d / 3_600_000), "hour");
   return dateTime(ms);
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/** A day and time: 10/12 14:03, in the order of the language. */
 export function dateTime(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return new Intl.DateTimeFormat(lang(), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms);
 }
 
 export function hourLabel(ms: number): string {
@@ -66,8 +69,7 @@ export function hourLabel(ms: number): string {
 }
 
 export function dayLabel(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return new Intl.DateTimeFormat(lang(), { month: "numeric", day: "numeric" }).format(ms);
 }
 
 export function clock(ms: number): string {

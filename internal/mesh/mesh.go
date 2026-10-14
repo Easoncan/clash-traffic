@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/store"
 	"clashtraffic/internal/tailnet"
 )
@@ -210,14 +211,14 @@ func (n *Node) update(fn func(*MeshStatus)) {
 func (n *Node) scan(ctx context.Context) {
 	if n.Enabled != nil && !n.Enabled() {
 		n.stopServer()
-		n.update(func(s *MeshStatus) { *s = MeshStatus{Port: n.port, Error: "已关闭"} })
+		n.update(func(s *MeshStatus) { *s = MeshStatus{Port: n.port, Error: i18n.T("Off")} })
 		return
 	}
 	n.update(func(s *MeshStatus) { s.Enabled, s.Scanning = true, true })
 	st, err := n.TailnetStatus(ctx)
 	if err != nil || st == nil || !st.Running() {
 		n.stopServer()
-		msg := "Tailscale 未连接"
+		msg := i18n.T("Tailscale is not connected")
 		if err != nil {
 			msg = err.Error()
 		}
@@ -336,7 +337,7 @@ func (n *Node) visit(ctx context.Context, p tailnet.Node) (PeerStatus, int) {
 		return ps, 0
 	}
 	if h.App != appName || h.Protocol != protocol || !store.ValidDeviceID(h.Device.ID) || strings.EqualFold(h.Device.ID, n.self) {
-		ps.State, ps.Error = PeerNoApp, "不是可识别的 Clash Traffic"
+		ps.State, ps.Error = PeerNoApp, i18n.T("not a Clash Traffic this one knows")
 		return ps, 0
 	}
 	ps.State = PeerApp
@@ -436,7 +437,7 @@ func (n *Node) saveTags() {
 func (n *Node) serve(ip netip.Addr) error {
 	if !ip.IsValid() {
 		n.stopServer()
-		return errors.New("本机没有 Tailscale IPv4 地址")
+		return errors.New(i18n.T("This computer has no Tailscale IPv4 address"))
 	}
 	addr := net.JoinHostPort(ip.String(), strconv.Itoa(n.port))
 	n.mu.Lock()
@@ -448,7 +449,7 @@ func (n *Node) serve(ip netip.Addr) error {
 	n.stopServer()
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("无法监听 %s: %w", addr, err)
+		return i18n.Errorf("cannot listen on %s: %w", addr, err)
 	}
 	srv := &http.Server{Handler: n, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute}
 	n.mu.Lock()
@@ -535,9 +536,9 @@ func shortError(err error) string {
 	var ne net.Error
 	switch {
 	case errors.As(err, &ne) && ne.Timeout():
-		return "连接超时"
+		return i18n.T("Timed out")
 	case strings.Contains(err.Error(), "connection refused"):
-		return "未运行 Clash Traffic"
+		return i18n.T("Does not run Clash Traffic")
 	}
 	s := err.Error()
 	if len(s) > 160 {

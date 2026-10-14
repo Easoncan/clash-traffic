@@ -138,3 +138,28 @@ func TestLongSession(t *testing.T) {
 		t.Fatalf("the long session is missing: %+v", p)
 	}
 }
+
+// The page shows some names in the user's language and finds them by it:
+// SearchAlso spells them as the data does (review 9, P2-1).
+func TestSearchAlso(t *testing.T) {
+	l, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UnixMilli()
+	l.Add(Session{ID: "1", Start: now - 120_000, End: now - 60_000, App: "未识别进程", Host: "a.example.com", Route: store.RouteDirect})
+	l.Add(Session{ID: "2", Start: now - 120_000, End: now - 60_000, App: "Chrome", Host: "局域网 192.168.1.5", Route: store.RouteDirect})
+	l.Add(Session{ID: "3", Start: now - 120_000, End: now - 60_000, App: "Chrome", Host: "b.example.com", Route: store.RouteDirect})
+	q := SessionQuery{From: now - time.Hour.Milliseconds(), To: now, Search: "unidentified"}
+	if p := l.Query(q, nil); p.Total != 0 {
+		t.Fatalf("without the alias: %+v", p)
+	}
+	q.SearchAlso = []string{"未识别进程"}
+	if p := l.Query(q, nil); p.Total != 1 || p.Items[0].ID != "1" {
+		t.Fatalf("with the alias: %+v", p)
+	}
+	q.Search, q.SearchAlso = "lan 192.168", []string{"局域网 192.168"}
+	if p := l.Query(q, nil); p.Total != 1 || p.Items[0].ID != "2" {
+		t.Fatalf("LAN: %+v", p)
+	}
+}

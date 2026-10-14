@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/store"
 )
 
@@ -116,7 +117,7 @@ func (s *Syncer) Run(ctx context.Context, b Backend) (Result, error) {
 	// put back to older copies, are uploaded again.
 	files, listErr := b.List(ctx)
 	if listErr != nil {
-		errs = append(errs, fmt.Errorf("列出远端文件: %w", listErr))
+		errs = append(errs, i18n.Errorf("listing the remote files: %w", listErr))
 	}
 	remoteTags := map[string]string{}
 	for _, f := range files {
@@ -169,7 +170,7 @@ func (s *Syncer) Run(ctx context.Context, b Backend) (Result, error) {
 		}
 		remoteTag, err := b.Put(ctx, s.self, name, data)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("上传 %s: %w", name, err))
+			errs = append(errs, i18n.Errorf("uploading %s: %w", name, err))
 			if ctx.Err() != nil {
 				break
 			}
@@ -207,7 +208,7 @@ func (s *Syncer) Run(ctx context.Context, b Backend) (Result, error) {
 		}
 		data, err := b.Get(ctx, f.Device, f.Name)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("下载 %s: %w", key, err))
+			errs = append(errs, i18n.Errorf("downloading %s: %w", key, err))
 			if ctx.Err() != nil {
 				break
 			}
@@ -216,7 +217,7 @@ func (s *Syncer) Run(ctx context.Context, b Backend) (Result, error) {
 		// A copy that came another way (Tailscale) may be newer.
 		wrote, err := store.ReplaceIfNewer(local, f.Name, data)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("下载 %s: %w", key, err))
+			errs = append(errs, i18n.Errorf("downloading %s: %w", key, err))
 			continue
 		}
 		if wrote {
@@ -250,7 +251,7 @@ func (f *Folder) List(ctx context.Context) ([]RemoteFile, error) {
 	} else if err != nil {
 		return nil, err
 	} else if !st.IsDir() {
-		return nil, fmt.Errorf("%s 不是文件夹", f.Path)
+		return nil, i18n.Errorf("%s is not a folder", f.Path)
 	}
 	devs, err := os.ReadDir(f.Path)
 	if err != nil {
@@ -306,7 +307,7 @@ func Check(ctx context.Context, b Backend, self string) error {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if _, err := b.Put(ctx, self, ".probe", []byte("ok")); err != nil {
-		return fmt.Errorf("写入失败: %w", err)
+		return i18n.Errorf("cannot write: %w", err)
 	}
 	if d, ok := b.(interface {
 		Delete(ctx context.Context, device, name string) error
@@ -314,7 +315,7 @@ func Check(ctx context.Context, b Backend, self string) error {
 		_ = d.Delete(ctx, self, ".probe")
 	}
 	if _, err := b.List(ctx); err != nil {
-		return fmt.Errorf("读取失败: %w", err)
+		return i18n.Errorf("cannot read: %w", err)
 	}
 	return nil
 }

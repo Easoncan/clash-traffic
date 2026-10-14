@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/store"
 )
 
@@ -72,8 +73,11 @@ type SessionQuery struct {
 	NoSub       bool        `json:"noSub"`       // with Sub "": only sessions of no subscription
 	GroupDomain bool        `json:"groupDomain"` // Host is a registrable domain
 	Search      string      `json:"search"`
-	Offset      int         `json:"offset"`
-	Limit       int         `json:"limit"` // 0 is 200
+	// SearchAlso are names that match too, as the data spells them: the
+	// page shows some in the user's language.
+	SearchAlso []string `json:"searchAlso"`
+	Offset     int      `json:"offset"`
+	Limit      int      `json:"limit"` // 0 is 200
 }
 
 // SessionPage is a page of the sessions a query selects, newest first.
@@ -248,7 +252,7 @@ func repair(path string) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("读取 %s: %w", filepath.Base(path), err)
+		return i18n.Errorf("reading %s: %w", filepath.Base(path), err)
 	}
 	var buf bytes.Buffer
 	if err := writeMember(&buf, list); err != nil {
@@ -502,7 +506,7 @@ func (l *Log) Query(q SessionQuery, open []Session) SessionPage {
 				return
 			}
 		}
-		if search != "" && !matches(&s, search) {
+		if search != "" && !matches(&s, search, q.SearchAlso) {
 			return
 		}
 		out.Total++
@@ -607,9 +611,9 @@ func (l *Log) Query(q SessionQuery, open []Session) SessionPage {
 	return out
 }
 
-func matches(s *Session, search string) bool {
+func matches(s *Session, search string, also []string) bool {
 	for _, v := range []string{s.App, s.Process, s.Host, s.Dest, s.Chains, s.Rule, s.Source, s.Sub} {
-		if strings.Contains(strings.ToLower(v), search) {
+		if store.Matches(v, search, also) {
 			return true
 		}
 	}

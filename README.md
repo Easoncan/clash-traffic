@@ -21,7 +21,7 @@ See where your Clash Verge traffic goes — by app, site, proxy node, subscripti
 - **Access log and live view** — every connection with its app, target, node and rule; live speed and open connections.
 - **Stays out of the way** — finds Clash Verge by itself, lives in the menu bar, starts at login, updates itself, exports CSV, follows light and dark mode.
 
-Your data stays on your computers, which exchange it directly. The interface is in Chinese for now.
+Your data stays on your computers, which exchange it directly. The app speaks English, 简体中文, 繁體中文, 日本語, 한국어 and Русский, following your system or the language you pick in Settings.
 
 ## Screenshots
 

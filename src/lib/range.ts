@@ -1,14 +1,16 @@
 import { isoDate } from "./format";
+import { t } from "./i18n";
 
 export type Preset = "today" | "yesterday" | "7d" | "30d" | "month" | "custom";
 
+/** The ranges, with their labels in English: t() shows them. */
 export const PRESETS: { id: Preset; label: string }[] = [
-  { id: "today", label: "今天" },
-  { id: "yesterday", label: "昨天" },
-  { id: "7d", label: "近 7 天" },
-  { id: "30d", label: "近 30 天" },
-  { id: "month", label: "本月" },
-  { id: "custom", label: "自定义" },
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "7d", label: "Last 7 days" },
+  { id: "30d", label: "Last 30 days" },
+  { id: "month", label: "This month" },
+  { id: "custom", label: "Custom" },
 ];
 
 export interface Range {
@@ -70,7 +72,7 @@ export function defaultRange(): Range {
 export function rangeLabel(r: Range): string {
   if (r.preset === "custom") {
     const [a, b] = ordered(r);
-    return `${isoDate(a.getTime())} 至 ${isoDate(b.getTime())}`;
+    return t("{from} to {to}", { from: isoDate(a.getTime()), to: isoDate(b.getTime()) });
   }
-  return PRESETS.find((p) => p.id === r.preset)?.label ?? "";
+  return t(PRESETS.find((p) => p.id === r.preset)?.label ?? "");
 }

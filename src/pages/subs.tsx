@@ -1,6 +1,8 @@
-import { Card, FilterBar, subLabel, toQuery, type PageProps } from "../app";
+import { Card, FilterBar, toQuery, type PageProps } from "../app";
 import { useReport } from "../lib/hooks";
-import { bytes, percent } from "../lib/format";
+import { bytes, dateTime, percent } from "../lib/format";
+import { lang, t, tn, tx } from "../lib/i18n";
+import { subLabel } from "../lib/names";
 import { rangeLabel } from "../lib/range";
 import type { Report, SubInfo } from "../mygo";
 
@@ -15,7 +17,7 @@ interface SubView {
 
 /** The subscriptions of every device, with the provider's usage and ours. */
 function subViews(report: Report): SubView[] {
-  const names = new Map<string, string>(report.devices.map((d) => [d.device.id, d.device.name + (d.self ? "（本机）" : "")]));
+  const names = new Map<string, string>(report.devices.map((d) => [d.device.id, d.device.name + (d.self ? t(" (this computer)") : "")]));
   const views = new Map<string, SubView>();
   const view = (name: string) => {
     let v = views.get(name);
@@ -61,10 +63,14 @@ export function SubsPage({ filters, setFilters, go }: PageProps) {
       <FilterBar filters={filters} setFilters={setFilters} hide={["sub"]} />
       <div class={`stack${loading && report ? " refreshing" : ""}`}>
         <p class="muted small intro">
-          走代理的流量记到 Clash Verge 当时启用的订阅（节点来自 proxy-provider 时记到该 provider），直连流量不消耗订阅。
-          「机场用量」来自订阅返回的信息，统计的是这个订阅在所有设备上的总用量；「本应用统计」是 Clash Traffic 在{rangeLabel(filters.range)}记录到的流量。
+          {t("Proxied traffic counts toward the subscription Clash Verge had on at the time (or the proxy-provider of its node); direct traffic uses no subscription.")}{" "}
+          {tx("{usage} comes from the subscription and is its usage on every device; {counted} is the traffic Clash Traffic recorded, {range}.", {
+            usage: t("Provider usage"),
+            counted: t("Counted here"),
+            range: rangeLabel(filters.range),
+          })}
         </p>
-        {report && !views.length && <div class="placeholder">还没有订阅信息：确认 Clash Verge 已导入订阅。</div>}
+        {report && !views.length && <div class="placeholder">{t("No subscriptions yet: make sure Clash Verge has imported one.")}</div>}
         <div class="sub-grid">
           {views.map((v) => (
             <SubCard key={v.name} v={v} total={counted} onShow={() => show(v.name)} />
@@ -84,24 +90,24 @@ function SubCard({ v, total, onShow }: { v: SubView; total: number; onShow: () =
       title={
         <>
           {subLabel(v.name)}
-          {v.inUse.length > 0 && <span class="badge live">使用中</span>}
+          {v.inUse.length > 0 && <span class="badge live">{t("In use")}</span>}
         </>
       }
       extra={
         <button type="button" class="ghost small" onClick={onShow}>
-          只看它的流量 ›
+          {t("Show its traffic only")} ›
         </button>
       }
     >
-      {v.inUse.length > 0 && <div class="muted small">正在使用：{v.inUse.join("、")}</div>}
+      {v.inUse.length > 0 && <div class="muted small">{t("In use on {devices}", { devices: new Intl.ListFormat(lang()).format(v.inUse) })}</div>}
       {v.name !== "" && <Quota info={v.info} />}
-      {v.name === "" && <p class="muted small">直连和被拦截的流量，不经过任何订阅的节点，不计入机场流量。</p>}
+      {v.name === "" && <p class="muted small">{t("Direct and blocked traffic goes through no subscription's node and does not count toward any plan.")}</p>}
 
       <div class="sub-counted">
-        <div class="sub-section-title">本应用统计</div>
+        <div class="sub-section-title">{t("Counted here")}</div>
         <div class="device-total">{bytes(sum)}</div>
         <div class="muted small">
-          下载 {bytes(v.down)} · 上传 {bytes(v.up)} · 占全部 {percent(sum, total)}
+          {t("Download {down} · upload {up}", { down: bytes(v.down), up: bytes(v.up) })} · {t("{share} of all", { share: percent(sum, total) })}
         </div>
         {v.devices.length > 0 && (
           <ul class="sub-devices">
@@ -125,7 +131,7 @@ function SubCard({ v, total, onShow }: { v: SubView; total: number; onShow: () =
 /** The plan's usage, as the provider reports it. */
 function Quota({ info }: { info: SubInfo | null }) {
   if (!info || (!info.total && !info.upload && !info.download && !info.expire)) {
-    return <p class="muted small">订阅没有提供用量信息。</p>;
+    return <p class="muted small">{t("The subscription gives no usage.")}</p>;
   }
   const used = info.upload + info.download;
   const ratio = info.total > 0 ? Math.min(1, used / info.total) : 0;
@@ -133,31 +139,35 @@ function Quota({ info }: { info: SubInfo | null }) {
   const days = info.expire ? Math.ceil((info.expire * 1000 - Date.now()) / 86_400_000) : null;
   return (
     <div class="quota">
-      <div class="sub-section-title">机场用量</div>
+      <div class="sub-section-title">{t("Provider usage")}</div>
       {info.total > 0 ? (
         <>
           <div class="quota-line">
             <strong>{bytes(used)}</strong>
             <span class="muted"> / {bytes(info.total)}</span>
             <span class={`quota-pct ${level}`}>
-              {level !== "normal" && (level === "critical" ? "⚠ 即将用完 · " : "⚠ 用量较高 · ")}
+              {level !== "normal" && `⚠ ${level === "critical" ? t("Nearly used up") : t("High usage")} · `}
               {percent(used, info.total)}
             </span>
           </div>
-          <div class="meter" role="meter" aria-valuemin={0} aria-valuemax={info.total} aria-valuenow={used} aria-label="订阅已用流量">
+          <div class="meter" role="meter" aria-valuemin={0} aria-valuemax={info.total} aria-valuenow={used} aria-label={t("Subscription traffic used")}>
             <span class={`meter-fill ${level}`} style={{ width: `${Math.max(ratio * 100, used > 0 ? 0.8 : 0)}%` }} />
           </div>
-          <div class="muted small">剩余 {bytes(Math.max(0, info.total - used))}</div>
+          <div class="muted small">{t("{bytes} left", { bytes: bytes(Math.max(0, info.total - used)) })}</div>
         </>
       ) : (
         <div class="quota-line">
           <strong>{bytes(used)}</strong>
-          <span class="muted"> 已用（订阅未提供总量）</span>
+          <span class="muted"> {t("used (the subscription gives no total)")}</span>
         </div>
       )}
       <div class="muted small">
-        {days !== null && info.expire ? (days < 0 ? "已过期" : `${new Date(info.expire * 1000).toLocaleDateString("zh-CN")} 到期，还有 ${days} 天`) : "无到期时间"}
-        {info.updated ? ` · 订阅更新于 ${new Date(info.updated * 1000).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
+        {days !== null && info.expire
+          ? days < 0
+            ? t("Expired")
+            : tn("Expires on {date}, in {n} days", days, { date: new Date(info.expire * 1000).toLocaleDateString(lang()) })
+          : t("No expiry")}
+        {info.updated ? ` · ${t("Subscription updated {time}", { time: dateTime(info.updated * 1000) })}` : ""}
       </div>
     </div>
   );
