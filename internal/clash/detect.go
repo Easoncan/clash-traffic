@@ -19,7 +19,8 @@ import (
 
 // Detect finds the controller of the running Clash Verge core: it tries
 // the controllers named on the command line of running cores, then those
-// of Clash Verge's configuration files, then the usual defaults.
+// of Clash Verge's configuration files, active Windows pipes, and the
+// usual defaults.
 func Detect(ctx context.Context) (Endpoint, string, error) {
 	cands := Candidates()
 	var errs []string
@@ -74,6 +75,9 @@ func Candidates() []Endpoint {
 		if ep.Kind == KindHTTP && fileSecret == "" {
 			fileSecret = ep.Secret
 		}
+		add(ep)
+	}
+	for _, ep := range fromRunningPipes() {
 		add(ep)
 	}
 	switch runtime.GOOS {
