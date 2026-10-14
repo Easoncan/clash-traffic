@@ -549,6 +549,7 @@ func (c *Core) Settings() Settings {
 	s := f.Settings
 	s.OpenAtLogin = mygo.App.OpenAtLogin()
 	s.HasWebDAVPassword = f.webdavPassword() != ""
+	s.AutoCheckUpdates, s.AutoInstallUpdates = updatePrefs()
 	return s
 }
 
@@ -592,6 +593,7 @@ func (c *Core) SaveSettings(in Settings, password *string) (Settings, error) {
 	c.mu.Unlock()
 
 	var errs []error
+	setUpdatePrefs(in.AutoCheckUpdates, in.AutoInstallUpdates)
 	if in.OpenAtLogin != mygo.App.OpenAtLogin() {
 		if err := mygo.App.SetOpenAtLogin(in.OpenAtLogin); err != nil {
 			errs = append(errs, fmt.Errorf("开机启动: %w", err))

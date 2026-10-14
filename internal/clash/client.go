@@ -10,7 +10,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -223,6 +225,78 @@ func (c *Client) FindProcessMode(ctx context.Context) (string, error) {
 // Verge restores its own value when it reloads the configuration.
 func (c *Client) SetFindProcessMode(ctx context.Context, mode string) error {
 	return c.do(ctx, http.MethodPatch, "/configs", map[string]string{"find-process-mode": mode}, nil)
+}
+
+// ProxyURL returns the core's HTTP proxy, mixed-port or else port, as
+// this computer reaches it: nil when the core has neither, runs on another
+// computer, which its controller's address tells, or wants a password from
+// this computer, which the controller does not tell.
+func (c *Client) ProxyURL(ctx context.Context) (*url.URL, error) {
+	if c.ep.Kind == KindHTTP {
+		u, err := url.Parse(c.ep.Address)
+		if err != nil {
+			return nil, err
+		}
+		if ip, err := netip.ParseAddr(u.Hostname()); u.Hostname() != "localhost" && (err != nil || !ip.IsLoopback()) {
+			return nil, nil
+		}
+	}
+	var cfg struct {
+		Port        int    `json:"port"`
+		MixedPort   int    `json:"mixed-port"`
+		AllowLAN    bool   `json:"allow-lan"`
+		BindAddress string `json:"bind-address"`
+		// The users of the proxies, without their passwords, and the
+		// addresses let in without one.
+		Authentication   []string `json:"authentication"`
+		SkipAuthPrefixes []string `json:"skip-auth-prefixes"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/configs", nil, &cfg); err != nil {
+		return nil, err
+	}
+	port := cfg.MixedPort
+	if port <= 0 {
+		port = cfg.Port
+	}
+	if port <= 0 {
+		return nil, nil
+	}
+	// The proxy listens on the loopback address, or once it is open to the
+	// LAN on bind-address: "*", or an address, IPv6 ones in brackets.
+	host := netip.MustParseAddr("127.0.0.1")
+	if cfg.AllowLAN {
+		bind := strings.TrimSuffix(strings.TrimPrefix(cfg.BindAddress, "["), "]")
+		if ip, err := netip.ParseAddr(bind); err == nil && !ip.IsUnspecified() && ip.Zone() == "" {
+			host = ip.Unmap()
+		}
+	}
+	addr := net.JoinHostPort(host.String(), strconv.Itoa(port))
+	// The core lets in without a password the addresses connections come
+	// from, as the system picks them.
+	if len(cfg.Authentication) > 0 && !inPrefixes(sourceAddr(addr), cfg.SkipAuthPrefixes) {
+		return nil, nil
+	}
+	return &url.URL{Scheme: "http", Host: addr}, nil
+}
+
+// sourceAddr returns the address the system sends from to addr: a UDP
+// socket picks it when it connects, which sends nothing.
+func sourceAddr(addr string) netip.Addr {
+	c, err := net.Dial("udp", addr)
+	if err != nil {
+		return netip.Addr{}
+	}
+	defer c.Close()
+	return c.LocalAddr().(*net.UDPAddr).AddrPort().Addr().Unmap()
+}
+
+func inPrefixes(ip netip.Addr, prefixes []string) bool {
+	for _, s := range prefixes {
+		if p, err := netip.ParsePrefix(s); err == nil && p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // CloseConnection closes one connection.

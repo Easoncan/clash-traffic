@@ -1,8 +1,10 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Card, type PageProps } from "../app";
 import { errorText } from "../lib/hooks";
-import { Monitor, Preferences, type AboutInfo, type ClashStatus, type Endpoint, type Settings } from "../mygo";
+import { ago } from "../lib/format";
+import { takeChanged } from "../lib/form";
+import { events, Monitor, Preferences, type AboutInfo, type ClashStatus, type Endpoint, type Settings } from "../mygo";
 
 export function SettingsPage({ status, notify }: PageProps) {
   const [saved, setSaved] = useState<Settings | null>(null);
@@ -13,16 +15,29 @@ export function SettingsPage({ status, notify }: PageProps) {
   const [clashTest, setClashTest] = useState<ClashStatus | null>(null);
   const [syncTest, setSyncTest] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState("");
+  const savedRef = useRef(saved);
+  savedRef.current = saved;
 
   useEffect(() => {
     Preferences.get().then((s) => (setSaved(s), setForm(s))).catch((err) => notify(errorText(err), "error"));
     Preferences.about().then(setAbout).catch(() => {});
+    // The update window changes these too, and each check sends them: an
+    // unsaved edit of one stays.
+    return events.updates.on((u) => {
+      const changed = { autoCheckUpdates: u.autoCheck, autoInstallUpdates: u.autoInstall };
+      const before = savedRef.current;
+      setAbout((a) => a && { ...a, updates: u });
+      setSaved((s) => s && { ...s, ...changed });
+      setForm((f) => f && before && takeChanged(f, before, changed));
+    });
   }, []);
   if (!form || !saved) return null;
 
   const set = (patch: Partial<Settings>) => setForm({ ...form, ...patch });
   const dirty = JSON.stringify(form) !== JSON.stringify(saved) || password !== null;
   const isMac = document.documentElement.dataset.platform === "darwin";
+  const updates = about?.updates;
+  const canUpdate = !!updates?.enabled;
 
   const run = async (name: string, fn: () => Promise<void>) => {
     setBusy(name);
@@ -246,11 +261,32 @@ export function SettingsPage({ status, notify }: PageProps) {
           <dd>
             <code>{about?.deviceId}</code>
           </dd>
-          <dt>版本</dt>
-          <dd>
-            {about?.version || "开发版"} · {about?.platform}
-          </dd>
         </dl>
+      </Card>
+
+      <Card title="软件更新">
+        <div class="status-box">
+          <div>
+            <strong>
+              Clash Traffic {about?.version || "开发版"} <span class="muted small">{about?.platform}</span>
+            </strong>
+            <div class="muted small">{updates?.enabled ? `上次检查：${ago(updates.lastCheck)}` : updates?.reason}</div>
+          </div>
+          <button type="button" class="ghost small" onClick={() => Preferences.checkForUpdates().catch((err) => notify(errorText(err), "error"))}>
+            检查更新…
+          </button>
+        </div>
+        <Toggle checked={form.autoCheckUpdates} disabled={!canUpdate} onChange={(v) => set({ autoCheckUpdates: v })} label="自动检查更新">
+          每天从 GitHub 检查一次新版本，有新版本时显示更新说明，由你决定是否安装。
+        </Toggle>
+        <Toggle
+          checked={form.autoInstallUpdates}
+          disabled={!canUpdate || !form.autoCheckUpdates}
+          onChange={(v) => set({ autoInstallUpdates: v })}
+          label="自动下载并安装更新"
+        >
+          不再询问，在后台下载并安装新版本，下次启动时生效。
+        </Toggle>
       </Card>
 
       <div class={`savebar${dirty ? " show" : ""}`}>
@@ -278,11 +314,23 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Toggle({ checked, onChange, label, children }: { checked: boolean; onChange: (v: boolean) => void; label: string; children?: ComponentChildren }) {
+function Toggle({
+  checked,
+  disabled,
+  onChange,
+  label,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  children?: ComponentChildren;
+}) {
   return (
-    <div class="toggle-row">
+    <div class={`toggle-row${disabled ? " disabled" : ""}`}>
       <label class="switch big">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.currentTarget.checked)} />
+        <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.currentTarget.checked)} />
         <span>{label}</span>
       </label>
       {children && <p class="hint">{children}</p>}

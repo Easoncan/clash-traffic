@@ -112,7 +112,7 @@ code {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: var(--mygo-titlebar-height, 52px);
+  height: max(48px, var(--mygo-titlebar-height, 52px));
   padding-left: max(6px, calc(var(--mygo-titlebar-inset-left, 0px) + 4px));
   font-weight: 600;
   font-size: 1.05rem;
@@ -120,9 +120,10 @@ code {
 }
 
 html[data-platform="darwin"] .brand {
-  /* Under the traffic lights: the name goes below them. */
+  /* Under the traffic lights, as far below them as the nav is below it;
+     in full screen, where they hide, the title bar's height is 0. */
   height: auto;
-  padding: calc(var(--mygo-titlebar-height, 52px) - 6px) 6px 10px;
+  padding: max(16px, calc(var(--mygo-titlebar-height, 52px) - 2px)) 6px 10px;
 }
 
 .brand-mark {
@@ -244,7 +245,8 @@ nav {
   flex: none;
   display: flex;
   align-items: center;
-  height: var(--mygo-titlebar-height, 52px);
+  /* 0 in full screen: the title still needs its row. */
+  height: max(48px, var(--mygo-titlebar-height, 52px));
   padding: 0 calc(24px + var(--mygo-titlebar-inset-right, 0px)) 0 24px;
 }
 .titlebar h1 {
@@ -1132,6 +1134,9 @@ button.stat.active {
 }
 .toggle-row .hint {
   margin: 4px 0 0 22px;
+}
+.toggle-row.disabled {
+  opacity: 0.5;
 }
 .switch.big {
   font-weight: 500;

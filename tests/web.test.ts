@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { takeChanged } from "../src/lib/form";
 import { appendRate, newerLive } from "../src/lib/live";
 import { rangeLabel, resolve } from "../src/lib/range";
 import type { Live } from "../src/mygo";
@@ -61,5 +62,22 @@ describe("appendRate (round four, B4)", () => {
     for (let i = 1; i <= 10; i++) st = appendRate(st, live(i, 0, "r", i * 1000), 4);
     expect(st.rates.length).toBe(4);
     expect(st.rates[0]!.t).toBe(7000);
+  });
+});
+
+describe("takeChanged (review 7, P2-3)", () => {
+  const saved = { autoCheckUpdates: true, autoInstallUpdates: false, deviceName: "Mac" };
+  test("an unsaved edit outlives a check for updates", () => {
+    const form = { ...saved, autoInstallUpdates: true, deviceName: "MacBook" };
+    // A check sends the preferences as they are, unchanged.
+    expect(takeChanged(form, saved, { autoCheckUpdates: true, autoInstallUpdates: false })).toEqual(form);
+  });
+  test("a change from the update window shows in fields left alone", () => {
+    const form = { ...saved, deviceName: "MacBook" };
+    expect(takeChanged(form, saved, { autoCheckUpdates: true, autoInstallUpdates: true })).toEqual({ ...form, autoInstallUpdates: true });
+  });
+  test("an edited field keeps the edit, the others follow", () => {
+    const form = { ...saved, autoCheckUpdates: false };
+    expect(takeChanged(form, saved, { autoCheckUpdates: true, autoInstallUpdates: true })).toEqual({ ...form, autoInstallUpdates: true });
   });
 });

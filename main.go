@@ -34,6 +34,7 @@ func main() {
 	}
 
 	core := &Core{}
+	useUpdater(core)
 	mygo.Bind(&Traffic{core})
 	mygo.Bind(&Monitor{core})
 	mygo.Bind(&Preferences{core})
@@ -52,7 +53,18 @@ func main() {
 		}
 		if runtime.GOOS == "darwin" {
 			app.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
-				{Role: mygo.RoleAppMenu},
+				{Label: "Clash Traffic", Submenu: []*mygo.MenuItem{
+					{Role: mygo.RoleAbout},
+					updateMenuItem(),
+					mygo.Separator(),
+					{Role: mygo.RoleServices},
+					mygo.Separator(),
+					{Role: mygo.RoleHide},
+					{Role: mygo.RoleHideOthers},
+					{Role: mygo.RoleUnhide},
+					mygo.Separator(),
+					{Role: mygo.RoleQuit},
+				}},
 				{Role: mygo.RoleEditMenu},
 				{Role: mygo.RoleViewMenu},
 				{Role: mygo.RoleWindowMenu},
@@ -95,16 +107,20 @@ func showMainWindow() {
 		return
 	}
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title:           "Clash Traffic",
-		Width:           1200,
-		Height:          800,
-		MinWidth:        960,
-		MinHeight:       620,
-		TitleBarStyle:   mygo.TitleBarHidden,
-		TitleBarHeight:  52,
-		BackgroundColor: "light-dark(#f6f7f9, #111318)", // the page's --bg
-		StateKey:        "main",
-		URL:             "/",
+		Title:          "Clash Traffic",
+		Width:          1200,
+		Height:         800,
+		MinWidth:       960,
+		MinHeight:      620,
+		TitleBarStyle:  mygo.TitleBarHidden,
+		TitleBarHeight: 52,
+		// macOS keeps its own title bar height, which leaves the traffic
+		// lights hard against the top: lower them into a title bar as tall
+		// as the other platforms' (the button's height plus twice Y).
+		TrafficLightPosition: &mygo.Point{X: 18, Y: 18},
+		BackgroundColor:      "light-dark(#f6f7f9, #111318)", // the page's --bg
+		StateKey:             "main",
+		URL:                  "/",
 	})
 	w.OnClosed(func() {
 		winMu.Lock()
@@ -127,6 +143,7 @@ func setupTray(core *Core) {
 		mygo.Separator(),
 		{Label: "打开 Clash Traffic", Click: func(*mygo.MenuItem, *mygo.Window) { showMainWindow() }},
 		{Label: "立即同步", Click: func(*mygo.MenuItem, *mygo.Window) { core.TriggerSync() }},
+		updateMenuItem(),
 		mygo.Separator(),
 		{Label: "退出", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
 	})

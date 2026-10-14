@@ -19,7 +19,7 @@ See where your Clash Verge traffic goes — by app, site, proxy node, subscripti
 - **Subscriptions** — what each subscription carried, beside the usage and expiry its provider reports.
 - **All your computers, no setup** — copies running in your Tailscale tailnet find each other and merge their numbers. A shared folder or WebDAV works too.
 - **Access log and live view** — every connection with its app, target, node and rule; live speed and open connections.
-- **Stays out of the way** — finds Clash Verge by itself, lives in the menu bar, starts at login, exports CSV, follows light and dark mode.
+- **Stays out of the way** — finds Clash Verge by itself, lives in the menu bar, starts at login, updates itself, exports CSV, follows light and dark mode.
 
 Your data stays on your computers, which exchange it directly. The interface is in Chinese for now.
 

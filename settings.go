@@ -60,6 +60,10 @@ type Settings struct {
 	// Not stored in the settings file.
 	OpenAtLogin       bool `json:"openAtLogin"`
 	HasWebDAVPassword bool `json:"hasWebdavPassword"`
+	// The updater keeps these: whether it checks for updates once a day,
+	// and whether it installs them without asking.
+	AutoCheckUpdates   bool `json:"autoCheckUpdates"`
+	AutoInstallUpdates bool `json:"autoInstallUpdates"`
 }
 
 // settingsFile is what the settings file holds.
@@ -114,6 +118,7 @@ func loadSettings(path string) (settingsFile, error) {
 
 func saveSettings(path string, f settingsFile) error {
 	f.OpenAtLogin, f.HasWebDAVPassword = false, false
+	f.AutoCheckUpdates, f.AutoInstallUpdates = false, false
 	b, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err

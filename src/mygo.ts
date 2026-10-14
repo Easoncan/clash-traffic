@@ -11,6 +11,7 @@ export interface AboutInfo {
   dataDir: string;
   deviceId: string;
   dev: boolean;
+  updates: UpdateInfo;
 }
 
 /** ClashMode is how the app finds the Clash core. */
@@ -275,6 +276,12 @@ export interface Settings {
   /** Not stored in the settings file. */
   openAtLogin: boolean;
   hasWebdavPassword: boolean;
+  /**
+   * The updater keeps these: whether it checks for updates once a day,
+   * and whether it installs them without asking.
+   */
+  autoCheckUpdates: boolean;
+  autoInstallUpdates: boolean;
 }
 
 export interface SubDevice {
@@ -308,6 +315,21 @@ export interface SyncStatus {
   downloaded: number;
   /** other devices on the remote */
   devices: number;
+}
+
+/** UpdateInfo is what the settings page shows of updates. */
+export interface UpdateInfo {
+  /** Enabled is false when this build cannot update itself, for Reason. */
+  enabled: boolean;
+  reason: string;
+  /**
+   * LastCheck is when the app last checked, in Unix milliseconds; 0 for
+   * never.
+   */
+  lastCheck: number;
+  /** The choices the update window can change too. */
+  autoCheck: boolean;
+  autoInstall: boolean;
 }
 
 // ---- Services ----
@@ -387,6 +409,10 @@ export const Preferences = {
   about(): Promise<AboutInfo> {
     return call("Preferences.About");
   },
+  /** CheckForUpdates checks for a new version now, in the update window. */
+  checkForUpdates(): Promise<void> {
+    return call("Preferences.CheckForUpdates");
+  },
   /**
    * ChooseFolder asks for the folder to sync through. It returns "" when the
    * user canceled.
@@ -448,4 +474,9 @@ export const events = {
   data: event<DataChange>("data"),
   /** MeshEvent is sent when sharing over Tailscale changes. */
   mesh: event<MeshStatus>("mesh"),
+  /**
+   * UpdateEvent tells the page that the update preferences changed, from
+   * the update window as well.
+   */
+  updates: event<UpdateInfo>("updates"),
 } as const;

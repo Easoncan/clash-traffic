@@ -85,22 +85,20 @@ func catHead(p vec) float64 {
 }
 
 // arrow is the signed distance to an arrow at c pointing up (dir -1) or
-// down (dir 1), h tall.
-func arrow(p, c vec, h, dir float64) float64 {
-	w := h * 0.78 // the head's width
+// down (dir 1), h tall, its head w wide and its shaft shaftW.
+func arrow(p, c vec, h, w, shaftW, dir float64) float64 {
 	headH := h * 0.5
 	tip := vec{c.x, c.y + dir*h/2}
 	base := c.y + dir*(h/2-headH)
 	head := sdPolygon(p, vec{c.x - w/2, base}, tip, vec{c.x + w/2, base})
-	shaftW := h * 0.26
 	shaft := sdRoundRect(p, vec{c.x, c.y - dir*headH/2 + dir*0.001}, vec{shaftW / 2, (h-headH)/2 + 0.01}, shaftW*0.3)
 	return math.Min(head, shaft)
 }
 
-func eyes(p vec, size float64) float64 {
-	h := 0.155 * size
-	up := arrow(p, vec{0.375, 0.6}, h, -1)
-	down := arrow(p, vec{0.625, 0.6}, h, 1)
+func eyes(p vec) float64 {
+	const h = 0.155
+	up := arrow(p, vec{0.375, 0.6}, h, h*0.78, h*0.26, -1)
+	down := arrow(p, vec{0.625, 0.6}, h, h*0.78, h*0.26, 1)
 	return math.Min(up, down)
 }
 
@@ -131,16 +129,25 @@ func encode(img image.Image) []byte {
 	return buf.Bytes()
 }
 
+// trayCat is the cat drawn for the menu bar, in a unit box: broader and
+// squatter than the app's, with eyes bold enough to read at 16 points.
+func trayCat(p vec) float64 {
+	head := sdEllipse(p, vec{0.5, 0.6}, vec{0.46, 0.34})
+	ear := 0.05
+	left := sdPolygon(p, rounded(ear, vec{0.08, 0.5}, vec{0.46, 0.34}, vec{0.14, 0.07})...) - ear
+	right := sdPolygon(p, rounded(ear, vec{0.92, 0.5}, vec{0.86, 0.07}, vec{0.54, 0.34})...) - ear
+	cat := math.Min(head, math.Min(left, right))
+	const h, w, shaftW = 0.33, 0.26, 0.1
+	up := arrow(p, vec{0.32, 0.62}, h, w, shaftW, -1)
+	down := arrow(p, vec{0.68, 0.62}, h, w, shaftW, 1)
+	return math.Max(cat, -math.Min(up, down))
+}
+
 // Tray returns the menu bar icon, black on transparent so that macOS tints
 // it, size pixels square: the cat, its eyes cut out.
 func Tray(size int) []byte {
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
-	// The cat fills the icon: its box is the unit box less the margin
-	// above the ears and below the chin.
-	inside := func(p vec) bool {
-		q := vec{p.x, 0.1 + p.y*0.82}
-		return catHead(q) <= 0 && eyes(q, 1.45) > 0
-	}
+	inside := func(p vec) bool { return trayCat(p) <= 0 }
 	for y := range size {
 		for x := range size {
 			a := coverage(x, y, size, inside)
@@ -187,7 +194,7 @@ func App(size int) []byte {
 	toCat := func(p vec) vec { return vec{(p.x-0.5)/art + 0.5, (p.y - top) / art} }
 	white := func(p vec) bool {
 		q := toCat(p)
-		return catHead(q) <= 0 && eyes(q, 1) > 0 && nose(q) > 0
+		return catHead(q) <= 0 && eyes(q) > 0 && nose(q) > 0
 	}
 	for y := range size {
 		for x := range size {

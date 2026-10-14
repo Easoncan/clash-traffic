@@ -144,11 +144,12 @@ func (m *Monitor) Candidates() []clash.Endpoint { return clash.Candidates() }
 
 // AboutInfo describes the app and where it keeps its data.
 type AboutInfo struct {
-	Version  string `json:"version"`
-	Platform string `json:"platform"`
-	DataDir  string `json:"dataDir"`
-	DeviceID string `json:"deviceId"`
-	Dev      bool   `json:"dev"`
+	Version  string     `json:"version"`
+	Platform string     `json:"platform"`
+	DataDir  string     `json:"dataDir"`
+	DeviceID string     `json:"deviceId"`
+	Dev      bool       `json:"dev"`
+	Updates  UpdateInfo `json:"updates"`
 }
 
 // Preferences reads and changes the settings.
@@ -206,8 +207,12 @@ func (p *Preferences) About() AboutInfo {
 		DataDir:  filepath.Dir(p.core.store.Root()),
 		DeviceID: p.core.store.Self().ID,
 		Dev:      mygo.IsDev(),
+		Updates:  updateInfo(),
 	}
 }
+
+// CheckForUpdates checks for a new version now, in the update window.
+func (p *Preferences) CheckForUpdates() { checkForUpdates() }
 
 // Sync exchanges the traffic with the other devices.
 type Sync struct{ core *Core }
