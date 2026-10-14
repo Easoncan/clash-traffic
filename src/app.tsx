@@ -115,6 +115,34 @@ export function RouteSwitch({ value, onChange }: { value: RouteFilter; onChange:
   );
 }
 
+/** The app's icon: Clash's cat, its eyes an up and a down arrow. */
+function BrandMark() {
+  return (
+    <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <linearGradient id="brand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="45" y2="100">
+          <stop offset="0" stop-color="#ff7eb3" />
+          <stop offset="0.5" stop-color="#9b6bf2" />
+          <stop offset="1" stop-color="#3f82f0" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="22" fill="url(#brand-gradient)" />
+      <g fill="#fff" stroke="#fff" stroke-width="4.5" stroke-linejoin="round">
+        <ellipse cx="50" cy="55" rx="22.5" ry="17.6" />
+        <polygon points="27.8,48.6 46.2,37.8 30.8,23.6" />
+        <polygon points="72.2,48.6 53.8,37.8 69.2,23.6" />
+      </g>
+      <g fill="url(#brand-gradient)">
+        <polygon points="41.25,49.6 37,55 45.5,55" />
+        <rect x="39.8" y="54.3" width="2.9" height="6.8" rx="0.8" />
+        <polygon points="58.75,60.4 54.5,55 63,55" />
+        <rect x="57.3" y="48.9" width="2.9" height="6.8" rx="0.8" />
+        <polygon points="47.6,63 52.4,63 50,65.8" />
+      </g>
+    </svg>
+  );
+}
+
 function Icon({ d }: { d: string }) {
   return (
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -165,9 +193,7 @@ export function App() {
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">
-            <Icon d="M7 20V5M3 9l4-4 4 4M17 4v15M13 15l4 4 4-4" />
-          </span>
+          <BrandMark />
           Clash Traffic
         </div>
         <nav>

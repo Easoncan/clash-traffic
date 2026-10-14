@@ -126,18 +126,9 @@ html[data-platform="darwin"] .brand {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: linear-gradient(#4f46e5, #0ea5e9);
-}
-.brand-mark .icon {
-  width: 16px;
-  height: 16px;
-  stroke: #fff;
-  stroke-width: 2.2;
+  width: 26px;
+  height: 26px;
+  flex: none;
 }
 
 nav {
@@ -591,8 +582,9 @@ button.stat.active {
   display: block;
   overflow: visible;
 }
-.chart path.s-down,
-.chart path.s-up {
+/* Columns are fills only; lines (.stroke) keep their series color. */
+.chart path.s-down:not(.stroke),
+.chart path.s-up:not(.stroke) {
   stroke: none;
 }
 .chart .dim path {
