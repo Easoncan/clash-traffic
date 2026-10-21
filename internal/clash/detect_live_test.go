@@ -11,14 +11,28 @@ func TestDetectLive(t *testing.T) {
 		t.Skip("set CLASH_LIVE=1 to try the running core")
 	}
 	for _, ep := range Candidates() {
-		t.Logf("candidate %s (%s)", ep, ep.Source)
+		c := NewClient(ep)
+		v, err := c.Version(t.Context())
+		if err != nil {
+			t.Logf("candidate %s (%s): %v", ep, ep.Source, err)
+		} else {
+			s, err := c.Connections(t.Context())
+			if err != nil {
+				t.Logf("candidate %s: version %s, /connections failed: %v", ep, v, err)
+			} else {
+				t.Logf("candidate %s: version %s, %d connections, up %d down %d", ep, v, len(s.Connections), s.UploadTotal, s.DownloadTotal)
+			}
+		}
+		c.Close()
 	}
 	ep, v, err := Detect(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("found %s %s", ep, v)
-	s, err := NewClient(ep).Connections(context.Background())
+	c := NewClient(ep)
+	defer c.Close()
+	s, err := c.Connections(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
