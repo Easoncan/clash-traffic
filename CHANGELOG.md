@@ -2,6 +2,21 @@
 
 每个版本的说明也会显示在应用的更新窗口中。
 
+## 0.1.4
+
+- Exporting CSV from Apps or Hosts keeps the search: the file holds the lines the page shows.
+  在「应用」「访问地址」页导出 CSV 时会应用搜索词，导出内容与页面所见一致。
+- With a device picked, Subscriptions splits each subscription's traffic by that device only.
+  在「订阅」页选择设备后，各订阅下的设备分项只显示所选设备。
+- Pages no longer dim every few seconds as they refresh; chart tooltips show dates in the app's language.
+  页面定时刷新时不再每隔几秒变暗一次；图表提示中的日期按所选语言显示。
+- On Windows, Clash Verge's core is found by its running pipe too, as in service mode; Settings shows the order the app searches in.
+  Windows 上也会查找运行中内核的管道（例如服务模式）；设置页中的查找顺序说明已更新。
+- A settings file that cannot be read is kept as settings.json.unreadable-…, instead of being replaced by the defaults.
+  无法读取的设置文件会另存为 settings.json.unreadable-…，不再被默认设置覆盖。
+- Files are on disk before they replace the old ones, so a power cut leaves no empty file; queries of long ranges no longer hold up counting.
+  文件先写入磁盘再替换旧文件，断电后不会留下空文件；查询较长时间范围时不再阻塞流量统计。
+
 ## 0.1.3
 
 - **Languages**: English, 简体中文, 繁體中文, 日本語, 한국어 and Русский. The app follows the system; choose another in Settings → This computer → Language. The menus, the tray and the messages follow too.
