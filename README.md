@@ -33,7 +33,7 @@ Your data stays on your computers, which exchange it directly. The app speaks En
 
 ## Install
 
-Download the latest build from [Releases](https://github.com/lufficc/clash-traffic/releases): a universal `.dmg` for macOS, an installer for Windows (x64 or ARM64), or a `.deb` / `.tar.gz` for Linux.
+Download the latest build from [Releases](https://github.com/lufficc/clash-traffic/releases): a universal `.dmg` for macOS 13 or later (Apple silicon and Intel), an installer for Windows (x64 or ARM64), or a `.deb` / `.tar.gz` for Linux.
 
 The builds are not signed yet. On macOS, right-click the app and choose **Open** the first time; on Windows, choose **More info → Run anyway**.
 

@@ -33,7 +33,7 @@
 
 ## 安装
 
-从 [Releases](https://github.com/lufficc/clash-traffic/releases) 下载：macOS 通用 `.dmg`、Windows 安装程序（x64 或 ARM64）、Linux `.deb` / `.tar.gz`。
+从 [Releases](https://github.com/lufficc/clash-traffic/releases) 下载：macOS 通用 `.dmg`（macOS 13 及以上，支持 Apple 芯片和 Intel）、Windows 安装程序（x64 或 ARM64）、Linux `.deb` / `.tar.gz`。
 
 安装包暂未签名。macOS 首次打开请右键选择「打开」；Windows 请选择「更多信息 → 仍要运行」。
 

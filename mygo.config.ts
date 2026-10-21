@@ -19,4 +19,8 @@ export default defineConfig({
     publicKey: "XvFzwWpm0jjixED5INf3tnNIaCOWt7qKW3ux7cPmiN0=",
     github: "lufficc/clash-traffic",
   },
+  macos: {
+    // Go 1.27 links for macOS 13 and later, so the app cannot run on 12.
+    minimumSystemVersion: "13.0",
+  },
 });

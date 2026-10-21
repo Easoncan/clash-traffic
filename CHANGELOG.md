@@ -16,6 +16,8 @@
   无法读取的设置文件会另存为 settings.json.unreadable-…，不再被默认设置覆盖。
 - Files are on disk before they replace the old ones, so a power cut leaves no empty file; queries of long ranges no longer hold up counting.
   文件先写入磁盘再替换旧文件，断电后不会留下空文件；查询较长时间范围时不再阻塞流量统计。
+- The macOS app says it needs macOS 13 or later, as its code does; it runs on Apple silicon and Intel alike.
+  macOS 版本标明需要 macOS 13 及以上（与程序实际要求一致），Apple 芯片和 Intel 均可运行。
 
 ## 0.1.3
 
