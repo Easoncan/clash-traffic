@@ -6,10 +6,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 
@@ -95,9 +98,19 @@ func loadSettings(path string) (settingsFile, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return f, err
 	}
+	keep := false // the file could not be read nor moved aside: never write over it
 	if len(b) > 0 {
-		if err := json.Unmarshal(b, &f); err != nil {
+		if jerr := json.Unmarshal(b, &f); jerr != nil {
+			// The defaults take its place, but the file stays for the user
+			// to mend: it holds the WebDAV password and the sync settings.
 			f = settingsFile{Settings: defaultSettings()}
+			aside := fmt.Sprintf("%s.unreadable-%d", path, time.Now().Unix())
+			if rerr := os.Rename(path, aside); rerr != nil {
+				keep = true
+				err = fmt.Errorf("%s cannot be read (%v) nor moved aside (%v): the defaults apply, unsaved", path, jerr, rerr)
+			} else {
+				log.Printf("settings: %s cannot be read (%v): moved to %s", path, jerr, aside)
+			}
 		}
 	}
 	s := &f.Settings
@@ -113,7 +126,7 @@ func loadSettings(path string) (settingsFile, error) {
 	if s.SyncMinutes <= 0 {
 		s.SyncMinutes = 10
 	}
-	if changed {
+	if changed && !keep {
 		err = saveSettings(path, f)
 	}
 	return f, err

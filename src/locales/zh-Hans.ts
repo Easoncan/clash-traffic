@@ -229,6 +229,7 @@ const zhHans: Dict = {
   "The secret of Clash Verge's external controller setting; not needed with a socket or pipe": "Clash Verge 设置 → 外部控制 中的密钥；使用 socket / 管道时不需要",
   "Search order": "检测顺序",
   "Tries in turn: the running core's command line → Clash Verge's config files → the default addresses": "依次尝试：运行中的内核命令行 → Clash Verge 配置文件 → 默认地址",
+  "Tries in turn: Clash Verge's config files → the pipes of running cores → the default addresses": "依次尝试：Clash Verge 配置文件 → 运行中内核的管道 → 默认地址",
   "No address found: Clash Verge may not be running": "没有找到候选地址，Clash Verge 可能没有运行",
   "Show the addresses": "查看候选地址",
   "Testing…": "测试中…",

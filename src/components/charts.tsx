@@ -3,7 +3,7 @@ import type { ComponentChildren } from "preact";
 import type { Item, Point, RatePoint } from "../mygo";
 import { useWidth } from "../lib/hooks";
 import { byteTicks, bytes, clock, dayLabel, hourLabel, percent, rate } from "../lib/format";
-import { t, tn } from "../lib/i18n";
+import { lang, t, tn } from "../lib/i18n";
 import { nameLabel } from "../lib/names";
 
 /** The two series every chart shows, with their palette slots; t() shows
@@ -121,7 +121,7 @@ export function ColumnChart({ points, bucket, height = 230 }: { points: Point[];
       )}
       {hp && hover != null && (
         <Tooltip x={PAD.left + hover * band + band / 2} y={PAD.top} width={width}>
-          <div class="tip-title">{bucket === "hour" ? `${new Date(hp.t).toLocaleDateString("zh-CN")} ${label(hp.t)}` : new Date(hp.t).toLocaleDateString("zh-CN")}</div>
+          <div class="tip-title">{bucket === "hour" ? `${new Date(hp.t).toLocaleDateString(lang())} ${label(hp.t)}` : new Date(hp.t).toLocaleDateString(lang())}</div>
           <TipRow k="down" value={bytes(hp.down)} />
           <TipRow k="up" value={bytes(hp.up)} />
         </Tooltip>

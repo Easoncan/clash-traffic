@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"compress/gzip"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -94,6 +95,37 @@ func TestDevicesMergeAndCrossFilter(t *testing.T) {
 	}
 	if lines := strings.Count(buf.String(), "\n"); lines != 5 {
 		t.Fatalf("csv has %d lines:\n%s", lines, buf.String())
+	}
+	// The search of the page exports the lines it shows.
+	for _, c := range []struct {
+		q     Query
+		lines int
+	}{
+		{Query{Search: "chrome", SearchIn: "app"}, 4},
+		{Query{Search: "google", SearchIn: "host"}, 3},
+		{Query{Search: "google", SearchIn: "app"}, 1},
+		{Query{Search: "telegram"}, 2},
+	} {
+		c.q.From, c.q.To = h*1000, (h+3600)*1000
+		buf.Reset()
+		if err := mac.Export(c.q, &buf); err != nil {
+			t.Fatal(err)
+		}
+		if lines := strings.Count(buf.String(), "\n"); lines != c.lines {
+			t.Fatalf("%q in %q: csv has %d lines:\n%s", c.q.Search, c.q.SearchIn, lines, buf.String())
+		}
+	}
+}
+
+func TestOpenRejectsPaths(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "data")
+	for _, id := range []string{"../escape", "a/b", "..", "/abs"} {
+		if _, err := Open(root, DeviceInfo{ID: id}); err == nil {
+			t.Errorf("Open(%q) took it", id)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(root), "escape")); err == nil {
+		t.Fatal("a directory outside of the store was made")
 	}
 }
 
@@ -205,6 +237,18 @@ func TestSubsAndVersion1Files(t *testing.T) {
 	if winShare != 7 {
 		t.Fatalf("sub by device: %+v", r.SubDevices)
 	}
+	// Picking a device splits its subscriptions by it alone.
+	q.Devices = []string{"mac"}
+	r = mac.Query(q)
+	if len(r.SubDevices) == 0 {
+		t.Fatal("no sub by device, mac picked")
+	}
+	for _, sd := range r.SubDevices {
+		if sd.Device != "mac" {
+			t.Fatalf("sub by device, mac picked: %+v", r.SubDevices)
+		}
+	}
+	q.Devices = nil
 	q.Sub, q.NoSub = "", true
 	if r = mac.Query(q); r.Down != 502 {
 		t.Fatalf("no sub: %d", r.Down)

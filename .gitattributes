@@ -1,0 +1,3 @@
+# LF everywhere, whatever core.autocrlf says: gofmt and the generated
+# client want it.
+* text=auto eol=lf

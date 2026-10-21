@@ -17,7 +17,7 @@ export function Ranking({ kind, ...props }: PageProps & { kind: "apps" | "hosts"
     const timer = setTimeout(() => setDebounced(search), 250);
     return () => clearTimeout(timer);
   }, [search]);
-  const { query, live } = toQuery(filters, { limit: 500, search: debounced, searchAlso: searchAliases(debounced) });
+  const { query, live } = toQuery(filters, { limit: 500, search: debounced, searchAlso: searchAliases(debounced), searchIn: kind === "apps" ? "app" : "host" });
   const { report, loading, error } = useReport(query, live);
 
   const isApps = kind === "apps";

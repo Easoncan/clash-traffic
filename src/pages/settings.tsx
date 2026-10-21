@@ -48,6 +48,7 @@ export function SettingsPage({ status, notify }: PageProps) {
   const set = (patch: Partial<Settings>) => setForm({ ...form, ...patch });
   const dirty = JSON.stringify(form) !== JSON.stringify(saved) || password !== null;
   const isMac = document.documentElement.dataset.platform === "darwin";
+  const isWindows = document.documentElement.dataset.platform === "win32";
   const updates = about?.updates;
   const canUpdate = !!updates?.enabled;
 
@@ -126,7 +127,7 @@ export function SettingsPage({ status, notify }: PageProps) {
             </Field>
           </>
         ) : (
-          <Field label={t("Search order")} hint={t("Tries in turn: the running core's command line → Clash Verge's config files → the default addresses")}>
+          <Field label={t("Search order")} hint={isWindows ? t("Tries in turn: Clash Verge's config files → the pipes of running cores → the default addresses") : t("Tries in turn: the running core's command line → Clash Verge's config files → the default addresses")}>
             {candidates ? (
               <ul class="plain-list">
                 {candidates.map((c) => (

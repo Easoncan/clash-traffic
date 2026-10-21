@@ -229,6 +229,7 @@ const ko: Dict = {
   "The secret of Clash Verge's external controller setting; not needed with a socket or pipe": "Clash Verge 설정 → 외부 컨트롤러의 비밀 키입니다. 소켓 또는 파이프를 사용할 때는 필요 없습니다",
   "Search order": "감지 순서",
   "Tries in turn: the running core's command line → Clash Verge's config files → the default addresses": "다음 순서로 시도합니다: 실행 중인 코어의 명령줄 → Clash Verge 설정 파일 → 기본 주소",
+  "Tries in turn: Clash Verge's config files → the pipes of running cores → the default addresses": "다음 순서로 시도합니다: Clash Verge 설정 파일 → 실행 중인 코어의 파이프 → 기본 주소",
   "No address found: Clash Verge may not be running": "주소를 찾지 못했습니다. Clash Verge가 실행 중이 아닐 수 있습니다",
   "Show the addresses": "후보 주소 보기",
   "Testing…": "테스트 중…",

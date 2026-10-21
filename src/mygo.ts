@@ -162,6 +162,7 @@ export interface Query {
   groupDomain: boolean;
   search: string;
   searchAlso: string[];
+  searchIn: string;
   limit: number;
   bucket: string;
   route: Route;

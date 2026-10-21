@@ -73,10 +73,12 @@ func main() {
 			showMainWindow()
 		}
 	})
-	if err := app.Run(); err != nil {
+	err := app.Run()
+	// Saves the counters and syncs them even when the app failed.
+	core.Stop()
+	if err != nil {
 		log.Fatal(err)
 	}
-	core.Stop()
 }
 
 var (

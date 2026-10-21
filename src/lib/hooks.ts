@@ -28,8 +28,9 @@ export function useWidth<T extends Element>(): [RefObject<T>, number] {
 
 /**
  * The report of a query. It refreshes every few seconds while the range
- * reaches the present, and whenever data of other devices arrives. While a
- * new report loads, the last one stays.
+ * reaches the present, and whenever data of other devices arrives. While the
+ * report of a new query loads, the last one stays, and loading is true;
+ * refreshes leave loading alone, or the page would dim every few seconds.
  */
 export function useReport(query: Query, live: boolean): { report: Report | null; loading: boolean; error: string } {
   const [report, setReport] = useState<Report | null>(null);
@@ -40,9 +41,9 @@ export function useReport(query: Query, live: boolean): { report: Report | null;
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
+    const load = async (fresh = false) => {
       const n = ++seq.current;
-      setLoading(true);
+      if (fresh) setLoading(true);
       try {
         const r = await Traffic.report(query);
         if (alive && n === seq.current) {
@@ -55,7 +56,7 @@ export function useReport(query: Query, live: boolean): { report: Report | null;
         if (alive && n === seq.current) setLoading(false);
       }
     };
-    void load();
+    void load(true);
     const timer = live ? setInterval(load, 5000) : undefined;
     const off = events.data.on(() => void load());
     return () => {

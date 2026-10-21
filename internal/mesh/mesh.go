@@ -361,7 +361,9 @@ func (n *Node) pull(ctx context.Context, base string, h Hello) (int, error) {
 	pulled := 0
 	// The device file last, so that it never claims data not pulled yet.
 	files := append([]FileInfo(nil), h.Files...)
-	sort.SliceStable(files, func(i, j int) bool { return files[j].Name == store.DeviceFile })
+	sort.SliceStable(files, func(i, j int) bool {
+		return files[i].Name != store.DeviceFile && files[j].Name == store.DeviceFile
+	})
 	for _, f := range files {
 		if !store.ValidFileName(f.Name) {
 			continue

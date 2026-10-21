@@ -129,10 +129,13 @@ func fromProcesses() []Endpoint {
 	return eps
 }
 
-// flagValue returns the value after " name " in a command line, up to the
-// next flag.
+// flagValue returns the value after " name " or " name=" in a command
+// line, up to the next flag.
 func flagValue(line, name string) string {
 	i := strings.Index(line, " "+name+" ")
+	if i < 0 {
+		i = strings.Index(line, " "+name+"=")
+	}
 	if i < 0 {
 		return ""
 	}

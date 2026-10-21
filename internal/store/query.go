@@ -27,10 +27,13 @@ type Query struct {
 	// SearchAlso are names that match too, as the data spells them: the
 	// page shows some in the user's language.
 	SearchAlso []string `json:"searchAlso"`
-	Limit      int      `json:"limit"`  // per list; 0 is 100
-	Bucket     string   `json:"bucket"` // "hour", "day", or "" to pick by the range
-	Route      Route    `json:"route"`  // only this route; "" for all
-	Sub        string   `json:"sub"`    // only this subscription; "" for all
+	// SearchIn is the name Export matches Search against, as the page that
+	// exports lists it: "app", "host", or "" for either.
+	SearchIn string `json:"searchIn"`
+	Limit    int    `json:"limit"`  // per list; 0 is 100
+	Bucket   string `json:"bucket"` // "hour", "day", or "" to pick by the range
+	Route    Route  `json:"route"`  // only this route; "" for all
+	Sub      string `json:"sub"`    // only this subscription; "" for all
 	// NoSub, with Sub "", selects the traffic of no subscription: direct.
 	NoSub bool `json:"noSub"`
 }
@@ -138,16 +141,47 @@ func (s *Store) gather(from, to int64) ([]DeviceInfo, []deviceRows) {
 	for t := time.Unix(from, 0).UTC().Truncate(24 * time.Hour); t.Unix() < to; t = t.Add(24 * time.Hour) {
 		days = append(days, DayOf(t))
 	}
+	type slot struct {
+		rows  []Row
+		paths map[string]string
+		read  *dayRead
+	}
+	slots := make([][]slot, len(devices))
+	var reads []*dayRead
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	for i, d := range devices {
+		slots[i] = make([]slot, len(days))
+		for j, day := range days {
+			sl := &slots[i][j]
+			sl.rows, sl.paths, sl.read = s.rows(d.ID, day)
+			if sl.read != nil {
+				reads = append(reads, sl.read)
+			}
+		}
+	}
+	s.mu.Unlock()
+	// The files not cached are read with the store let go.
+	if len(reads) > 0 {
+		for _, r := range reads {
+			r.read()
+		}
+		s.mu.Lock()
+		for _, r := range reads {
+			s.keep(r)
+		}
+		s.mu.Unlock()
+	}
+
 	out := make([]deviceRows, 0, len(devices))
-	for _, d := range devices {
+	for i, d := range devices {
 		dr := deviceRows{device: d.ID}
-		for _, day := range days {
-			rows, paths := s.rows(d.ID, day)
-			if len(rows) > 0 {
-				dr.rows = append(dr.rows, rows)
-				dr.paths = append(dr.paths, paths)
+		for _, sl := range slots[i] {
+			if sl.read != nil {
+				sl.rows, sl.paths = sl.read.rows, sl.read.paths
+			}
+			if len(sl.rows) > 0 {
+				dr.rows = append(dr.rows, sl.rows)
+				dr.paths = append(dr.paths, sl.paths)
 			}
 		}
 		out = append(out, dr)
@@ -306,15 +340,6 @@ func (s *Store) Query(q Query) *Report {
 					}
 					dt.Add(row.Counter)
 				}
-				if others && mRoute {
-					k := SubDevice{Sub: sub, Device: dr.device}
-					sd := subDevs[k]
-					if sd == nil {
-						sd = &Counter{}
-						subDevs[k] = sd
-					}
-					sd.Add(row.Counter)
-				}
 				if !inDevices {
 					continue
 				}
@@ -323,6 +348,15 @@ func (s *Store) Query(q Query) *Report {
 				}
 				if others && mRoute {
 					add(subs, sub, row.Counter)
+					// The devices a subscription's traffic is of: those
+					// picked, as its whole is.
+					k := SubDevice{Sub: sub, Device: dr.device}
+					sd := subDevs[k]
+					if sd == nil {
+						sd = &Counter{}
+						subDevs[k] = sd
+					}
+					sd.Add(row.Counter)
 				}
 				if !mRoute || !mSub {
 					continue
@@ -424,6 +458,20 @@ func (s *Store) Export(q Query, w io.Writer) error {
 	for _, d := range q.Devices {
 		selected[d] = true
 	}
+	// The rows of the lines the page shows: those whose name matches.
+	search := strings.ToLower(strings.TrimSpace(q.Search))
+	searched := func(app, host string) bool {
+		if search == "" {
+			return true
+		}
+		switch q.SearchIn {
+		case "app":
+			return Matches(app, search, q.SearchAlso)
+		case "host":
+			return Matches(host, search, q.SearchAlso)
+		}
+		return Matches(app, search, q.SearchAlso) || Matches(host, search, q.SearchAlso)
+	}
 	cw := csv.NewWriter(w)
 	if err := cw.Write([]string{"time", "device", "app", "process", "host", "proxy", "route", "subscription", "upload_bytes", "download_bytes", "connections"}); err != nil {
 		return err
@@ -444,7 +492,8 @@ func (s *Store) Export(q Query, w io.Writer) error {
 				}
 				host := s.hostOf(&q, row.Host)
 				if (q.App != "" && row.App != q.App) || (q.Host != "" && host != q.Host) || (q.Chain != "" && row.Chain != q.Chain) ||
-					(q.Route != "" && RouteOf(row.Chain) != q.Route) || ((q.Sub != "" || q.NoSub) && subOf(row) != q.Sub) {
+					(q.Route != "" && RouteOf(row.Chain) != q.Route) || ((q.Sub != "" || q.NoSub) && subOf(row) != q.Sub) ||
+					!searched(row.App, host) {
 					continue
 				}
 				row.Host = host

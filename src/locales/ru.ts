@@ -254,6 +254,7 @@ const ru: Dict = {
   "The secret of Clash Verge's external controller setting; not needed with a socket or pipe": "Секрет из настройки внешнего контроллера в Clash Verge; для сокета или канала не нужен",
   "Search order": "Порядок поиска",
   "Tries in turn: the running core's command line → Clash Verge's config files → the default addresses": "Проверяются по очереди: командная строка запущенного ядра → файлы конфигурации Clash Verge → адреса по умолчанию",
+  "Tries in turn: Clash Verge's config files → the pipes of running cores → the default addresses": "Проверяются по очереди: файлы конфигурации Clash Verge → каналы запущенных ядер → адреса по умолчанию",
   "No address found: Clash Verge may not be running": "Адрес не найден: возможно, Clash Verge не запущен",
   "Show the addresses": "Показать адреса",
   "Testing…": "Проверка…",

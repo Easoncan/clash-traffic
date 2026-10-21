@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -136,6 +137,10 @@ func DayOf(t time.Time) string { return t.UTC().Format(time.DateOnly) }
 func Open(root string, self DeviceInfo) (*Store, error) {
 	if self.ID == "" {
 		return nil, errors.New("store: device without an id")
+	}
+	// It names a directory of root, and nothing outside of it.
+	if !filepath.IsLocal(self.ID) || filepath.Base(self.ID) != self.ID {
+		return nil, fmt.Errorf("store: %q is not a device id", self.ID)
 	}
 	if err := os.MkdirAll(filepath.Join(root, self.ID), 0o755); err != nil {
 		return nil, err
@@ -402,9 +407,19 @@ func (s *Store) Forget(id string) error {
 	return os.RemoveAll(filepath.Join(s.root, id))
 }
 
+// dayRead is a day file a query reads without s.mu held: decoding one
+// takes a while, and the collector adds to the store every second.
+type dayRead struct {
+	key, path string
+	size      int64
+	modTime   time.Time
+	rows      []Row
+	paths     map[string]string
+}
+
 // rows returns the rows of a device's day: from memory for the local
-// device's open days, else from its file. s.mu is held.
-func (s *Store) rows(device, date string) ([]Row, map[string]string) {
+// device's open days or a file cached, else the file to read. s.mu is held.
+func (s *Store) rows(device, date string) ([]Row, map[string]string, *dayRead) {
 	if device == s.self.ID {
 		if d := s.open[date]; d != nil {
 			rows := make([]Row, 0, len(d.rows))
@@ -412,28 +427,37 @@ func (s *Store) rows(device, date string) ([]Row, map[string]string) {
 				rows = append(rows, Row{Key: k, Counter: *c})
 			}
 			// A copy: the collector adds to the day while queries read.
-			return rows, maps.Clone(d.paths)
+			return rows, maps.Clone(d.paths), nil
 		}
 	}
 	path := s.dayPath(device, date)
 	st, err := os.Stat(path)
 	if err != nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	key := device + "/" + date
 	if c := s.cache[key]; c != nil && c.size == st.Size() && c.modTime.Equal(st.ModTime()) {
 		c.used = time.Now()
-		return c.rows, c.paths
+		return c.rows, c.paths, nil
 	}
-	rows, paths, err := readDay(path)
-	if err != nil {
-		return nil, nil
+	return nil, nil, &dayRead{key: key, path: path, size: st.Size(), modTime: st.ModTime()}
+}
+
+// read reads the file, s.mu not held. Files are replaced whole, so it
+// reads the one stat saw or a newer one, which the next stat tells apart.
+func (r *dayRead) read() {
+	r.rows, r.paths, _ = readDay(r.path)
+}
+
+// keep caches what read read. s.mu is held.
+func (s *Store) keep(r *dayRead) {
+	if r.rows == nil {
+		return
 	}
 	if len(s.cache) > 400 {
 		s.evict()
 	}
-	s.cache[key] = &cached{rows: rows, paths: paths, size: st.Size(), modTime: st.ModTime(), used: time.Now()}
-	return rows, paths
+	s.cache[r.key] = &cached{rows: r.rows, paths: r.paths, size: r.size, modTime: r.modTime, used: time.Now()}
 }
 
 func (s *Store) evict() {
@@ -881,6 +905,13 @@ func WriteFileAtomic(path string, data []byte) error {
 		os.Remove(tmp.Name())
 		return err
 	}
+	// On disk before the name is: after a power cut, the file is the old
+	// one or the new one, never an empty one.
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmp.Name())
 		return err
@@ -888,6 +919,13 @@ func WriteFileAtomic(path string, data []byte) error {
 	if err := os.Rename(tmp.Name(), path); err != nil {
 		os.Remove(tmp.Name())
 		return err
+	}
+	// And the rename too. Windows cannot sync a directory, nor needs to.
+	if runtime.GOOS != "windows" {
+		if d, err := os.Open(filepath.Dir(path)); err == nil {
+			_ = d.Sync()
+			d.Close()
+		}
 	}
 	return nil
 }

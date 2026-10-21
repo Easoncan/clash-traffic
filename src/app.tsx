@@ -69,6 +69,7 @@ export function toQuery(f: Filters, extra: Partial<Query> = {}): { query: Query;
       groupDomain: f.groupDomain,
       search: "",
       searchAlso: [],
+      searchIn: "",
       limit: 100,
       bucket: "",
       route: f.route,
@@ -151,7 +152,8 @@ function Icon({ d }: { d: string }) {
 }
 
 export function App() {
-  const [page, setPage] = useState<PageId>(() => (localStorage.getItem("page") as PageId) || "overview");
+  // The page saved may be one another version had.
+  const [page, setPage] = useState<PageId>(() => NAV.find((n) => n.id === localStorage.getItem("page"))?.id ?? "overview");
   const [filters, setFiltersState] = useState<Filters>(() => ({
     range: defaultRange(),
     device: "",

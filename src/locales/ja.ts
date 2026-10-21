@@ -229,6 +229,7 @@ const ja: Dict = {
   "The secret of Clash Verge's external controller setting; not needed with a socket or pipe": "Clash Verge の外部コントローラー設定にあるシークレットです。ソケットまたはパイプでは不要です",
   "Search order": "検出順序",
   "Tries in turn: the running core's command line → Clash Verge's config files → the default addresses": "次の順に試します：実行中のコアのコマンドライン → Clash Verge の設定ファイル → デフォルトのアドレス",
+  "Tries in turn: Clash Verge's config files → the pipes of running cores → the default addresses": "次の順に試します：Clash Verge の設定ファイル → 実行中のコアのパイプ → デフォルトのアドレス",
   "No address found: Clash Verge may not be running": "アドレスが見つかりません。Clash Verge が実行されていない可能性があります",
   "Show the addresses": "候補のアドレスを表示",
   "Testing…": "テスト中…",
