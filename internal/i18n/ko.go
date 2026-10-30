@@ -1,6 +1,22 @@
 package i18n
 
 var ko = map[string]string{
+	"Could not observe current connection processes: %v": "현재 연결의 프로세스 정보를 관찰할 수 없습니다: %v",
+
+	"Could not read process identification: %v": "프로세스 식별 읽기 실패: %v",
+	"The core did not return a supported process identification mode": "코어가 지원되는 프로세스 식별 모드를 반환하지 않았습니다",
+	"Could not enable process identification: %v": "프로세스 식별 활성화 실패: %v",
+	"The core did not keep process identification enabled (mode: %s)": "코어가 프로세스 식별 활성 상태를 유지하지 않았습니다(모드: %s)",
+
+
+	"Clear stored traffic data?": "저장된 트래픽 데이터를 지울까요?",
+	"This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone.": "이 컴퓨터의 트래픽 통계와 접속 기록을 삭제합니다. 설정은 유지되고 집계는 계속됩니다. 다른 기기의 데이터는 다시 동기화될 수 있습니다. 되돌릴 수 없습니다.",
+	"Clear data": "데이터 지우기",
+	"Could not read the published update version":                                                   "게시된 업데이트 버전을 읽을 수 없습니다",
+	"Version %s is published, but its update package is not available yet. Please try again later.": "%s 버전이 게시되었지만 업데이트 패키지가 아직 준비되지 않았습니다. 나중에 다시 시도하세요.",
+	"GitHub could not check for updates (HTTP %d). Please try again later.":                         "GitHub에서 업데이트를 확인하지 못했습니다(HTTP %d). 나중에 다시 시도하세요.",
+
+
 	"Clash Traffic cannot start": "Clash Traffic을 시작할 수 없습니다",
 	"This computer today: —":     "오늘 이 컴퓨터: —",
 	"Live: not connected":        "실시간: 연결 안 됨",

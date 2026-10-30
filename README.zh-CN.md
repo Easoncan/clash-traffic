@@ -33,9 +33,9 @@
 
 ## 安装
 
-从 [Releases](https://github.com/lufficc/clash-traffic/releases) 下载：macOS 通用 `.dmg`（macOS 13 及以上，支持 Apple 芯片和 Intel）、Windows 安装程序（x64 或 ARM64）、Linux `.deb` / `.tar.gz`。
+从 [Releases](https://github.com/Easoncan/clash-traffic/releases) 下载：macOS 通用 `.dmg`（macOS 13 及以上，支持 Apple 芯片和 Intel）、Windows 安装程序（x64 或 ARM64）、Linux `.deb` / `.tar.gz`。
 
-安装包暂未签名。macOS 首次打开请右键选择「打开」；Windows 请选择「更多信息 → 仍要运行」。
+安装包暂未配置平台发布者证书（自动更新另有签名校验）。macOS 首次打开请右键选择「打开」；Windows 请选择「更多信息 → 仍要运行」。
 
 支持 Clash Verge Rev，以及控制接口可访问的其他 mihomo 内核。为区分应用，它会把内核的 `find-process-mode` 设为 `always`；在 Clash Verge 的全局扩展覆写配置中加入 `find-process-mode: always` 可在重载后保持。
 
@@ -51,3 +51,5 @@ go test ./...      # 以及 bun run test:web
 ```
 
 基于 [MyGo](https://mygo.egoist.dev/) 构建。
+
+发布打包、签名密钥及 `0.2.0` tag 约定见 [RELEASING.md](RELEASING.md)。

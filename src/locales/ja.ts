@@ -1,6 +1,36 @@
 import type { Dict } from "../lib/i18n";
 
 const ja: Dict = {
+  "Connection samples are unavailable; identification results cannot be observed yet.": "接続サンプルを取得できないため、実際の識別結果はまだ確認できません。",
+  "Current connections: the core identified {known} of {total}; this computer supplemented {local} more.": "現在の接続：コアで {total} 件中 {known} 件を識別、この端末でさらに {local} 件を補完。",
+  "No active connections to observe. This does not mean identification is disabled.": "確認できる接続が現在ありません。プロセス識別が無効という意味ではありません。",
+  "Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.": "初期設定はオンです。保存すると再起動せず動作中のコアを always にし、Clash Verge の再読み込み後も30秒ごとに確認します。オフにすると自動維持だけ停止します。",
+
+  "Tests the controller connection above; it does not check or change process identification.": "上のコントローラー接続のみをテストします。プロセス識別の確認や変更は行いません。",
+  "Process identification": "プロセス識別",
+  "Automatically keep process identification enabled": "プロセス識別を自動で有効に保つ",
+  "Process identification is enabled": "プロセス識別は有効です",
+  "Process identification is limited (strict)": "プロセス識別は制限モードです（strict）",
+  "Process identification is disabled (off)": "プロセス識別は無効です（off）",
+  "Could not confirm process identification": "プロセス識別の状態を確認できませんでした",
+  "Connect to Clash to check process identification": "Clash に接続してプロセス識別を確認してください",
+  "Waiting to check the current core": "現在のコアの確認を待っています",
+  "The core did not report a supported mode": "コアが対応するモードを返しませんでした",
+  "Core mode": "実際のコアモード",
+  "Automatic maintenance is on": "自動維持：オン",
+  "Automatic maintenance is off": "自動維持：オフ",
+  "Checking…": "確認中…",
+  "Check process identification": "プロセス識別を確認",
+  "This check only reads the current core. Even in always mode, some connections may still have no process information.": "この確認は現在のコア設定を読むだけです。always でも一部の接続にはプロセス情報がない場合があります。",
+  "To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.": "Clash Traffic 終了後も保持するには、Clash Verge のプロファイルのグローバル拡張設定に {line} を追加してください。",
+
+  "Storage used": "ストレージ使用量",
+  "Traffic statistics and access records saved on this computer. Settings are kept when clearing data.": "このコンピューターの通信統計とアクセス記録です。消去しても設定は保持されます。",
+  "Traffic {traffic} · access log {log}": "通信統計 {traffic} · アクセス記録 {log}",
+  "Clear stored data…": "保存データを消去…",
+  "Clearing…": "消去中…",
+  "Stored data cleared": "保存データを消去しました",
+
   "{s} s": "{s} 秒",
   "{m} min {s} s": "{m} 分 {s} 秒",
   "{h} h {m} min": "{h} 時間 {m} 分",

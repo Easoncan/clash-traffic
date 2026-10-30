@@ -1,6 +1,22 @@
 package i18n
 
 var zhHans = map[string]string{
+	"Could not observe current connection processes: %v": "无法观察当前连接的进程信息：%v",
+
+	"Could not read process identification: %v": "读取进程识别状态失败：%v",
+	"The core did not return a supported process identification mode": "内核未返回可识别的进程识别模式",
+	"Could not enable process identification: %v": "自动开启进程识别失败：%v",
+	"The core did not keep process identification enabled (mode: %s)": "内核未保持进程识别开启（实际模式：%s）",
+
+
+	"Clear stored traffic data?": "清除已保存的流量数据？",
+	"This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone.": "将删除本机保存的流量统计和访问记录，保留设置并继续统计。其他设备的数据可能再次同步回来。此操作无法撤销。",
+	"Clear data": "清除数据",
+	"Could not read the published update version":                                                   "无法识别已发布的更新版本",
+	"Version %s is published, but its update package is not available yet. Please try again later.": "已发布 %s，但对应的自动更新包尚未就绪，请稍后重试。",
+	"GitHub could not check for updates (HTTP %d). Please try again later.":                         "GitHub 暂时无法检查更新（HTTP %d），请稍后重试。",
+
+
 	"Clash Traffic cannot start": "Clash Traffic 无法启动",
 	"This computer today: —":     "本机今日：—",
 	"Live: not connected":        "实时：未连接",

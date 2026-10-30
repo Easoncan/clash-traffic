@@ -1,6 +1,22 @@
 package i18n
 
 var zhHant = map[string]string{
+	"Could not observe current connection processes: %v": "無法觀察目前連線的程序資訊：%v",
+
+	"Could not read process identification: %v": "讀取程序辨識狀態失敗：%v",
+	"The core did not return a supported process identification mode": "核心未傳回可辨識的程序辨識模式",
+	"Could not enable process identification: %v": "自動開啟程序辨識失敗：%v",
+	"The core did not keep process identification enabled (mode: %s)": "核心未保持程序辨識開啟（實際模式：%s）",
+
+
+	"Clear stored traffic data?": "清除已儲存的流量資料？",
+	"This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone.": "將刪除本機儲存的流量統計與存取記錄，保留設定並繼續統計。其他裝置的資料可能再次同步回來。此操作無法復原。",
+	"Clear data": "清除資料",
+	"Could not read the published update version":                                                   "無法辨識已發佈的更新版本",
+	"Version %s is published, but its update package is not available yet. Please try again later.": "已發佈 %s，但對應的自動更新套件尚未就緒，請稍後再試。",
+	"GitHub could not check for updates (HTTP %d). Please try again later.":                         "GitHub 暫時無法檢查更新（HTTP %d），請稍後再試。",
+
+
 	"Clash Traffic cannot start": "Clash Traffic 無法啟動",
 	"This computer today: —":     "本機今日：—",
 	"Live: not connected":        "即時：未連線",

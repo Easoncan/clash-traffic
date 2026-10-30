@@ -2,8 +2,28 @@ import { describe, expect, test } from "bun:test";
 import { takeChanged } from "../src/lib/form";
 import { setLang } from "../src/lib/i18n";
 import { appendRate, newerLive } from "../src/lib/live";
+import { processState } from "../src/lib/process";
 import { rangeLabel, resolve } from "../src/lib/range";
-import type { Live } from "../src/mygo";
+import type { ClashStatus, Live } from "../src/mygo";
+
+describe("actual process identification state", () => {
+  const checked: ClashStatus = { connected: true, endpoint: "test", source: "test", version: "test", error: "", findProcessMode: "always", processCheckedAt: 1, processCheckError: "", processConnections: 2, processIdentified: 1, processSupplemented: 0, processSampleError: "", since: 1 };
+  test("uses the actual mode rather than the maintenance checkbox", () => {
+    expect(processState(checked)).toBe("enabled");
+    expect(processState({ ...checked, findProcessMode: "strict" })).toBe("partial");
+    expect(processState({ ...checked, findProcessMode: "off" })).toBe("disabled");
+  });
+  test("an old or failed check is not displayed as enabled", () => {
+    expect(processState({ ...checked, connected: false })).toBe("disconnected");
+    expect(processState({ ...checked, processCheckedAt: 0 })).toBe("waiting");
+    expect(processState({ ...checked, processCheckError: "cannot verify" })).toBe("error");
+    expect(processState({ ...checked, findProcessMode: "unsupported" })).toBe("unknown");
+  });
+  test("no traffic or unavailable samples do not mean the runtime mode is off", () => {
+    expect(processState({ ...checked, processConnections: 0, processIdentified: 0 })).toBe("enabled");
+    expect(processState({ ...checked, processSampleError: "cannot observe" })).toBe("enabled");
+  });
+});
 
 const live = (seq: number, n: number, run = "r1", t = seq): Live => ({ t, upRate: 0, downRate: 0, coreUp: 0, coreDown: 0, conns: [], total: n, run, seq });
 
@@ -66,6 +86,15 @@ describe("appendRate (round four, B4)", () => {
     for (let i = 1; i <= 10; i++) st = appendRate(st, live(i, 0, "r", i * 1000), 4);
     expect(st.rates.length).toBe(4);
     expect(st.rates[0]!.t).toBe(7000);
+  });
+  test("clearing storage starts a fresh chart even when time moves forward", () => {
+    const before = appendRate(empty, live(10, 0, "before-clear", 1000));
+    const after = appendRate(before, live(1, 0, "after-clear", 2000));
+    expect(after.rates.map((p) => p.t)).toEqual([2000]);
+  });
+  test("initial history stays when the first run is learned", () => {
+    const loaded = { rates: [{ t: 1000, up: 1, down: 2 }], run: "", seq: 0 };
+    expect(appendRate(loaded, live(1, 0, "current", 2000)).rates.map((p) => p.t)).toEqual([1000, 2000]);
   });
 });
 

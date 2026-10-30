@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "mygo dev",
     "build": "mygo build",
+    "build:release": "bun scripts/release.ts",
     "generate": "mygo generate",
     "dev:web": "vite",
     "build:web": "tsc --noEmit && vite build",

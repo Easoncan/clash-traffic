@@ -33,9 +33,9 @@ Your data stays on your computers, which exchange it directly. The app speaks En
 
 ## Install
 
-Download the latest build from [Releases](https://github.com/lufficc/clash-traffic/releases): a universal `.dmg` for macOS 13 or later (Apple silicon and Intel), an installer for Windows (x64 or ARM64), or a `.deb` / `.tar.gz` for Linux.
+Download the latest build from [Releases](https://github.com/Easoncan/clash-traffic/releases): a universal `.dmg` for macOS 13 or later (Apple silicon and Intel), an installer for Windows (x64 or ARM64), or a `.deb` / `.tar.gz` for Linux.
 
-The builds are not signed yet. On macOS, right-click the app and choose **Open** the first time; on Windows, choose **More info → Run anyway**.
+The installers do not yet have platform publisher certificates (automatic updates have a separate signature). On macOS, right-click the app and choose **Open** the first time; on Windows, choose **More info → Run anyway**.
 
 It works with Clash Verge Rev, or any mihomo core whose controller it can reach. To tell apps apart it sets the core's `find-process-mode` to `always`; add `find-process-mode: always` to Clash Verge's merge config to keep it after a reload.
 
@@ -51,3 +51,5 @@ go test ./...      # and bun run test:web
 ```
 
 Built with [MyGo](https://mygo.egoist.dev/).
+
+Release packaging, signing keys and the `0.2.0` tag convention are described in [RELEASING.md](RELEASING.md).

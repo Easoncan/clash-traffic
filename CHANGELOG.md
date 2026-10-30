@@ -2,6 +2,25 @@
 
 每个版本的说明也会显示在应用的更新窗口中。
 
+## 0.2.0
+
+- Closing the last macOS window removes the Dock icon while counting continues in the menu bar; reopening restores it.
+  macOS 关闭最后一个窗口后隐藏 Dock 图标，菜单栏继续统计；重新打开窗口时恢复图标。
+- Exclude mihomo's internal dialer-proxy hops from app/subscription statistics, live connections and access records, avoiding duplicate traffic with chained proxies and custom listeners.
+  排除 mihomo 链式代理的内部中转连接，避免自定义监听端口和代理分组产生重复流量统计；实时连接和访问记录同步处理，升级时丢弃旧版可能重复计算的对账差额，保留历史记录。
+- On macOS, missing process metadata can be supplemented by a uniquely matching local TCP/UDP socket. Later identification applies to subsequent traffic; destinations alone never determine the app, and past unknown traffic is kept as recorded.
+  macOS 可通过唯一匹配的本机 TCP/UDP 套接字补充进程信息，后续识别成功会用于新增流量；不按域名猜测应用，也不改写历史未识别记录。
+- Settings shows storage usage and offers a second confirmation before clearing traffic and access records. Settings are retained, counting continues, and active connections do not bring back pre-clear traffic.
+  设置页显示存储占用，并提供二次确认后清除统计和访问记录；保留设置、继续统计，清除前的连接流量不会重新计入，页面筛选和曲线同步重置。
+- Separate connection testing from process identification. Automatic maintenance defaults on; checks read the running core's configuration and existing connection results. Changes are read back to confirm they took effect, with core identification and local supplementation shown separately.
+  连接测试和进程识别之间增加分隔；默认开启自动维护，通过读取运行中内核的配置及连接结果检查状态，修改后回读确认生效，分别展示内核识别和本机补充数量。
+- Updates now use Easoncan/clash-traffic and the fork's signing key. A repository without releases, or a missing manifest for the current version, reports up to date; a newer incomplete release or a network error remains an error. Universal macOS manifests serve both CPUs.
+  更新源改为 Easoncan/clash-traffic，使用本项目独立签名密钥；尚未发布 Release 或当前版本缺少清单时显示已是最新，存在更高版本但缺包或网络失败时仍提示错误，兼容 macOS 通用更新包。
+- The application identifier is now dev.easoncan.clashtraffic. Existing data and settings keep using the same directory; quit the old app before replacement and re-enable launch at login in the new macOS app if needed.
+  应用标识改为 dev.easoncan.clashtraffic，继续使用原数据和设置目录；替换前请退出旧版，macOS 如需开机启动，请在新版中重新开启。
+- Release packaging validates the embedded version against bare tags such as 0.2.0, verifies signed archives, corrects download URLs and builds macOS, Windows and Linux packages into a draft release only after all platforms pass. Existing upstream installations need one manual installation of this fork to switch update sources and signing keys.
+  发布流程校验内置版本与 0.2.0 等无前缀 tag 一致，验证更新包签名并修正下载地址，macOS、Windows、Linux 全部打包通过后生成草稿 Release。上游旧版需手动安装一次本项目版本，以切换更新源和公钥。
+
 ## 0.1.4
 
 - Exporting CSV from Apps or Hosts keeps the search: the file holds the lines the page shows.

@@ -1,6 +1,22 @@
 package i18n
 
 var ru = map[string]string{
+	"Could not observe current connection processes: %v": "Не удалось наблюдать процессы текущих соединений: %v",
+
+	"Could not read process identification: %v": "Не удалось прочитать состояние определения процессов: %v",
+	"The core did not return a supported process identification mode": "Ядро не вернуло поддерживаемый режим определения процессов",
+	"Could not enable process identification: %v": "Не удалось включить определение процессов: %v",
+	"The core did not keep process identification enabled (mode: %s)": "Ядро не сохранило определение процессов включённым (режим: %s)",
+
+
+	"Clear stored traffic data?": "Очистить сохранённые данные трафика?",
+	"This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone.": "Статистика и журнал на этом компьютере будут удалены. Настройки сохранятся, подсчёт продолжится. Данные других устройств могут синхронизироваться снова. Отменить действие нельзя.",
+	"Clear data": "Очистить данные",
+	"Could not read the published update version":                                                   "Не удалось определить опубликованную версию",
+	"Version %s is published, but its update package is not available yet. Please try again later.": "Версия %s опубликована, но пакет обновления ещё не готов. Повторите попытку позже.",
+	"GitHub could not check for updates (HTTP %d). Please try again later.":                         "Не удалось проверить обновления на GitHub (HTTP %d). Повторите попытку позже.",
+
+
 	"Clash Traffic cannot start": "Не удалось запустить Clash Traffic",
 	"This computer today: —":     "Этот компьютер сегодня: —",
 	"Live: not connected":        "Сейчас: нет подключения",

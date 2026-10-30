@@ -49,6 +49,8 @@ type Sink interface {
 
 type tracked struct {
 	up, down         int64 // bytes counted so far
+	baseUp, baseDown int64 // bytes carried before the user cleared storage
+	cutAt            int64 // sessions begin again at a clear
 	lastUp, lastDown int64 // counted at the last snapshot
 	seen             int64 // unix ms of the last snapshot that had it
 	keyed            bool
@@ -114,6 +116,7 @@ type Collector struct {
 	// countFrom is when counting began: the bytes a connection open
 	// before then carried earlier are not counted.
 	countFrom time.Time
+	clearedAt int64
 	prev      map[string]*tracked
 	started   bool
 	coreUp    int64
@@ -147,6 +150,20 @@ func New(sink Sink) *Collector {
 func (c *Collector) Reset() {
 	c.started = false
 	c.resetBalance()
+}
+
+// Clear starts a new counting run. Existing connections stay open, but
+// their old bytes must not return to reports, live counters or sessions.
+func (c *Collector) Clear(now time.Time, snap *clash.Snapshot) Live {
+	fresh := New(c.sink)
+	fresh.OnClose, fresh.CurrentSub = c.OnClose, c.CurrentSub
+	fresh.endpoint = c.endpoint
+	fresh.countFrom, fresh.clearedAt = now, now.UnixMilli()
+	*c = *fresh
+	if snap == nil {
+		return Live{T: now.UnixMilli(), Run: c.run, Conns: []LiveConn{}}
+	}
+	return c.Tick(now, snap)
 }
 
 // Connected tells the collector the controller it reads from now, at each
@@ -213,7 +230,7 @@ func (c *Collector) Tick(now time.Time, snap *clash.Snapshot) Live {
 	c.refreshLocals(now)
 
 	c.seq++
-	live := Live{T: now.UnixMilli(), CoreUp: snap.UploadTotal, CoreDown: snap.DownloadTotal, Total: len(snap.Connections), Run: c.run, Seq: c.seq}
+	live := Live{T: now.UnixMilli(), CoreUp: snap.UploadTotal, CoreDown: snap.DownloadTotal, Run: c.run, Seq: c.seq}
 	if !first && dt > 0 {
 		live.UpRate = int64(float64(snap.UploadTotal-c.coreUp) / dt)
 		live.DownRate = int64(float64(snap.DownloadTotal-c.coreDown) / dt)
@@ -224,6 +241,14 @@ func (c *Collector) Tick(now time.Time, snap *clash.Snapshot) Live {
 	live.Conns = make([]LiveConn, 0, len(snap.Connections))
 	for i := range snap.Connections {
 		conn := &snap.Connections[i]
+		// mihomo lists dialer-proxy hops as Inner connections, but their
+		// bytes are already carried by the application's connection and do
+		// not contribute to the core's totals. Counting them again inflates
+		// applications, subscriptions and sessions (often as AppUnknown).
+		if conn.Metadata.Type == "Inner" {
+			delete(c.prev, conn.ID) // also discard a pre-fix checkpoint entry
+			continue
+		}
 		seen[conn.ID] = true
 		t := c.prev[conn.ID]
 		isNew := t == nil
@@ -232,12 +257,21 @@ func (c *Collector) Tick(now time.Time, snap *clash.Snapshot) Live {
 			if conn.Start.Before(c.countFrom) {
 				// Open before counting began: count what it carries from now.
 				t.up, t.down = conn.Upload, conn.Download
+				if c.clearedAt != 0 {
+					t.baseUp, t.baseDown, t.cutAt = conn.Upload, conn.Download, c.clearedAt
+				}
 				isNew = false
 			}
 			c.prev[conn.ID] = t
 		}
 		if !t.keyed {
 			c.key(t, conn)
+		} else if t.app == AppUnknown {
+			// A lookup can succeed after the first snapshot. Keep the original
+			// route/subscription and counters; only later deltas change owner.
+			if app := procname.App(conn.Metadata.Process, conn.Metadata.ProcessPath); app != "" {
+				t.app, t.proc, t.path = app, conn.Metadata.Process, conn.Metadata.ProcessPath
+			}
 		}
 		du, dd := max(conn.Upload-t.up, 0), max(conn.Download-t.down, 0)
 		t.up, t.down = conn.Upload, conn.Download
@@ -255,7 +289,7 @@ func (c *Collector) Tick(now time.Time, snap *clash.Snapshot) Live {
 			ID: conn.ID, App: t.app, Process: t.proc, Host: t.host, Dest: t.dest,
 			Chain: t.chain, Chains: t.chains, Route: t.route, Sub: t.sub, Source: t.source,
 			Rule: t.rule, Network: t.network, Inbound: t.inbound,
-			Up: conn.Upload, Down: conn.Download, Start: t.start,
+			Up: max(conn.Upload-t.baseUp, 0), Down: max(conn.Download-t.baseDown, 0), Start: t.start,
 		}
 		if dt > 0 {
 			lc.UpRate = int64(float64(du) / dt)
@@ -263,6 +297,7 @@ func (c *Collector) Tick(now time.Time, snap *clash.Snapshot) Live {
 		}
 		live.Conns = append(live.Conns, lc)
 	}
+	live.Total = len(live.Conns)
 
 	var closed []*tracked
 	for id, t := range c.prev {
@@ -388,7 +423,7 @@ func (c *Collector) key(t *tracked, conn *clash.Conn) {
 	}
 
 	t.id = conn.ID
-	t.start = conn.Start.UnixMilli()
+	t.start = max(conn.Start.UnixMilli(), t.cutAt)
 	t.source = m.SourceIP
 	t.network = m.Network
 	t.inbound = m.InboundName
@@ -419,7 +454,7 @@ func (t *tracked) session(open bool) sessions.Session {
 		ID: t.id, Start: t.start, End: t.seen, Open: open,
 		App: t.app, Process: t.proc, Path: t.path, Host: t.host, Dest: t.dest, Source: t.source,
 		Network: t.network, Inbound: t.inbound, Chain: t.chain, Chains: t.chains, Route: t.route, Sub: t.sub, Rule: t.rule,
-		Up: t.up, Down: t.down,
+		Up: max(t.up-t.baseUp, 0), Down: max(t.down-t.baseDown, 0),
 	}
 }
 
@@ -476,14 +511,19 @@ func (c *Collector) refreshLocals(now time.Time) {
 }
 
 type savedConn struct {
-	Up   int64 `json:"up"`
-	Down int64 `json:"down"`
+	Up       int64 `json:"up"`
+	Down     int64 `json:"down"`
+	BaseUp   int64 `json:"baseUp,omitempty"`
+	BaseDown int64 `json:"baseDown,omitempty"`
+	CutAt    int64 `json:"cutAt,omitempty"`
 }
 
 type saved struct {
-	Saved int64                `json:"saved"` // unix ms of the snapshot the counts are of
-	Gen   int64                `json:"gen"`   // the store's generation they go with
-	Conns map[string]savedConn `json:"conns"`
+	AccountingVersion int                  `json:"accountingVersion,omitempty"`
+	ClearedAt         int64                `json:"clearedAt,omitempty"`
+	Saved             int64                `json:"saved"` // unix ms of the snapshot the counts are of
+	Gen               int64                `json:"gen"`   // the store's generation they go with
+	Conns             map[string]savedConn `json:"conns"`
 
 	// The core's totals at that snapshot and the difference to them not
 	// counted yet, which a quick restart goes on with.
@@ -497,6 +537,10 @@ type saved struct {
 	PrevBalDown int64         `json:"prevBalDown"`
 	LastClosed  []savedClosed `json:"lastClosed"`
 }
+
+// Version 1 excludes Inner hops. Older balances and closed candidates may
+// include duplicate traffic; keep their raw connection offsets, not the debt.
+const accountingVersion = 1
 
 // savedClosed is a connection that closed at the snapshot saved: the
 // difference still to hand out goes to it.
@@ -518,9 +562,9 @@ func (c *Collector) Save(path string, gen int64) error {
 	if at.IsZero() {
 		at = c.countFrom
 	}
-	s := saved{Saved: at.UnixMilli(), Gen: gen, Conns: make(map[string]savedConn, len(c.prev))}
+	s := saved{AccountingVersion: accountingVersion, Saved: at.UnixMilli(), ClearedAt: c.clearedAt, Gen: gen, Conns: make(map[string]savedConn, len(c.prev))}
 	for id, t := range c.prev {
-		s.Conns[id] = savedConn{Up: t.up, Down: t.down}
+		s.Conns[id] = savedConn{Up: t.up, Down: t.down, BaseUp: t.baseUp, BaseDown: t.baseDown, CutAt: t.cutAt}
 	}
 	s.Endpoint = c.endpoint
 	if c.started {
@@ -555,17 +599,21 @@ func (c *Collector) Load(path string, gen int64) error {
 		return ErrStaleCheckpoint
 	}
 	for id, sc := range s.Conns {
-		c.prev[id] = &tracked{up: sc.Up, down: sc.Down}
+		c.prev[id] = &tracked{up: sc.Up, down: sc.Down, baseUp: sc.BaseUp, baseDown: sc.BaseDown, cutAt: sc.CutAt}
 	}
+	c.clearedAt = s.ClearedAt
 	c.endpoint = s.Endpoint
 	if s.Started {
 		c.started, c.verify, c.restored = true, true, true
 		c.lastTick = time.UnixMilli(s.Saved)
 		c.coreUp, c.coreDown = s.CoreUp, s.CoreDown
-		c.balUp, c.balDown, c.prevBalUp, c.prevBalDown = s.BalUp, s.BalDown, s.PrevBalUp, s.PrevBalDown
-		for _, sc := range s.LastClosed {
-			c.lastClosed = append(c.lastClosed, &tracked{keyed: true, app: sc.App, proc: sc.Proc, host: sc.Host,
-				chain: sc.Chain, sub: sc.Sub, path: sc.Path, lastUp: sc.LastUp, lastDown: sc.LastDown})
+		c.resetBalance()
+		if s.AccountingVersion == accountingVersion {
+			c.balUp, c.balDown, c.prevBalUp, c.prevBalDown = s.BalUp, s.BalDown, s.PrevBalUp, s.PrevBalDown
+			for _, sc := range s.LastClosed {
+				c.lastClosed = append(c.lastClosed, &tracked{keyed: true, app: sc.App, proc: sc.Proc, host: sc.Host,
+					chain: sc.Chain, sub: sc.Sub, path: sc.Path, lastUp: sc.LastUp, lastDown: sc.LastDown})
+			}
 		}
 	}
 	// Connections that opened since were never seen: count them whole.

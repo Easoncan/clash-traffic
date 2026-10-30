@@ -26,10 +26,17 @@ export interface ClashStatus {
   version: string;
   error: string;
   /**
-   * FindProcessMode of the core: "always" finds the process of every
-   * connection, "strict" of few, "off" of none.
+   * FindProcessMode is the core's lookup policy: "always" attempts every
+   * connection, "strict" follows rules, "off" skips lookup. Attempts can fail.
    */
   findProcessMode: string;
+  /** The latest runtime check and observations of existing connections. */
+  processCheckedAt: number;
+  processCheckError: string;
+  processConnections: number;
+  processIdentified: number;
+  processSupplemented: number;
+  processSampleError: string;
   /** unix ms of the connection */
   since: number;
 }
@@ -292,6 +299,16 @@ export interface Settings {
   autoInstallUpdates: boolean;
 }
 
+/**
+ * StorageUsage is the on-disk space used by local traffic data and logs.
+ * Settings, credentials and the app itself are kept when clearing it.
+ */
+export interface StorageUsage {
+  bytes: number;
+  traffic: number;
+  accessLog: number;
+}
+
 export interface SubDevice {
   sub: string;
   device: string;
@@ -381,6 +398,13 @@ export const Monitor = {
   candidates(): Promise<Endpoint[]> {
     return call("Monitor.Candidates");
   },
+  /**
+   * CheckProcessIdentification reads whether the current core has process
+   * identification enabled; it does not apply or change settings.
+   */
+  checkProcessIdentification(): Promise<ClashStatus> {
+    return call("Monitor.CheckProcessIdentification");
+  },
   /** CloseConnection closes an open connection. */
   closeConnection(id: string): Promise<void> {
     return call("Monitor.CloseConnection", id);
@@ -428,6 +452,13 @@ export const Preferences = {
   chooseFolder(): Promise<string> {
     return call("Preferences.ChooseFolder");
   },
+  /**
+   * ClearStorage asks again before deleting any traffic data. Cancel is the
+   * default for both Enter and Escape.
+   */
+  clearStorage(): Promise<boolean> {
+    return call("Preferences.ClearStorage");
+  },
   /** Get returns the settings. */
   get(): Promise<Settings> {
     return call("Preferences.Get");
@@ -446,6 +477,10 @@ export const Preferences = {
    */
   save(s: Settings, webdavPassword: string | null): Promise<Settings> {
     return call("Preferences.Save", s, webdavPassword);
+  },
+  /** Storage reports the disk space occupied by clearable local data. */
+  storage(): Promise<StorageUsage> {
+    return call("Preferences.Storage");
   },
   /** TestClash tries to reach a core as the given settings would. */
   testClash(mode: ClashMode, address: string, secret: string): Promise<ClashStatus> {

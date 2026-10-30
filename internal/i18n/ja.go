@@ -1,6 +1,22 @@
 package i18n
 
 var ja = map[string]string{
+	"Could not observe current connection processes: %v": "現在の接続のプロセス情報を取得できません：%v",
+
+	"Could not read process identification: %v": "プロセス識別の読み取りに失敗しました：%v",
+	"The core did not return a supported process identification mode": "コアが対応するプロセス識別モードを返しませんでした",
+	"Could not enable process identification: %v": "プロセス識別を有効にできませんでした：%v",
+	"The core did not keep process identification enabled (mode: %s)": "コアでプロセス識別が維持されていません（モード：%s）",
+
+
+	"Clear stored traffic data?": "保存した通信データを消去しますか？",
+	"This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone.": "このコンピューターの通信統計とアクセス記録を削除します。設定を保持し、集計を続けます。他のデバイスのデータは再同期される場合があります。この操作は取り消せません。",
+	"Clear data": "データを消去",
+	"Could not read the published update version":                                                   "公開された更新バージョンを読み取れませんでした",
+	"Version %s is published, but its update package is not available yet. Please try again later.": "%s が公開されていますが、更新パッケージはまだ準備されていません。後でもう一度お試しください。",
+	"GitHub could not check for updates (HTTP %d). Please try again later.":                         "GitHub で更新を確認できませんでした（HTTP %d）。後でもう一度お試しください。",
+
+
 	"Clash Traffic cannot start": "Clash Traffic を起動できません",
 	"This computer today: —":     "今日（このコンピューター）：—",
 	"Live: not connected":        "リアルタイム：未接続",

@@ -172,6 +172,17 @@ func (n *Node) Status() MeshStatus {
 	return st
 }
 
+// Reset forgets downloaded copies after Run has stopped and the caller
+// cleared the local files. Enabled peers may be downloaded again.
+func (n *Node) Reset() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.tags = map[string]string{}
+	n.peers = map[string]PeerStatus{}
+	n.status.Peers = nil
+	n.status.LastScan = 0
+}
+
 // Trigger scans soon.
 func (n *Node) Trigger() {
 	select {

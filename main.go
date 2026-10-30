@@ -59,11 +59,13 @@ func main() {
 			onLanguage(func() { app.SetMenu(appMenu()) })
 		}
 		onLanguage(core.relanguage)
-		setupTray(core)
+		hasTray := setupTray(core)
 		core.Start()
 		// Started at login, it counts in the background, in the tray.
-		if !app.WasOpenedAtLogin() {
+		if !app.WasOpenedAtLogin() || !hasTray {
 			showMainWindow()
+		} else if runtime.GOOS == "darwin" {
+			app.Dock.Hide()
 		}
 	})
 	// Closing the window keeps counting; the tray brings it back.
@@ -87,6 +89,9 @@ var (
 )
 
 func showMainWindow() {
+	if runtime.GOOS == "darwin" {
+		mygo.App.Dock.Show()
+	}
 	winMu.Lock()
 	defer winMu.Unlock()
 	if mainWin != nil && !mainWin.IsDestroyed() {
@@ -180,7 +185,7 @@ func appMenu() *mygo.Menu {
 
 // setupTray puts an icon in the menu bar (notification area) with today's
 // traffic and the current speed.
-func setupTray(core *Core) {
+func setupTray(core *Core) bool {
 	today := &mygo.MenuItem{ID: "today", Label: i18n.T("This computer today: —"), Disabled: true}
 	speed := &mygo.MenuItem{ID: "speed", Label: i18n.T("Live: not connected"), Disabled: true}
 	menu := mygo.NewMenu([]*mygo.MenuItem{
@@ -201,12 +206,23 @@ func setupTray(core *Core) {
 	})
 	if err != nil {
 		log.Println("tray:", err)
-		return
+		return false
+	}
+	if runtime.GOOS == "darwin" {
+		// Only hide the Dock icon when the tray is available to reopen us.
+		// Watch all windows, including the updater: it can keep a hidden
+		// window alive after the main one closes.
+		mygo.App.OnWindowCreated(func(w *mygo.Window) {
+			w.OnShow(mygo.App.Dock.Show)
+			w.OnClosed(hideDockWhenIdle)
+		})
 	}
 	today, speed = menu.ItemByID("today"), menu.ItemByID("speed")
 	// showToday puts today's traffic of this computer in the menu and the
 	// tooltip.
 	showToday := func() {
+		core.dataMu.RLock()
+		defer core.dataMu.RUnlock()
 		now := time.Now()
 		midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		r := core.store.Query(store.Query{From: midnight.UnixMilli(), To: now.UnixMilli() + 1, Devices: []string{core.store.Self().ID}, Limit: 1})
@@ -254,6 +270,16 @@ func setupTray(core *Core) {
 			showToday()
 		}
 	}
+	return true
+}
+
+func hideDockWhenIdle() {
+	for _, w := range mygo.Windows() {
+		if w.IsVisible() || w.IsMinimized() {
+			return
+		}
+	}
+	mygo.App.Dock.Hide()
 }
 
 func formatBytes(n int64) string {

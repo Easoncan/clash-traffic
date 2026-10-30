@@ -1,6 +1,36 @@
 import type { Dict } from "../lib/i18n";
 
 const ru: Dict = {
+  "Connection samples are unavailable; identification results cannot be observed yet.": "Выборка соединений недоступна: фактические результаты определения пока нельзя оценить.",
+  "Current connections: the core identified {known} of {total}; this computer supplemented {local} more.": "Текущие соединения: ядро определило {known} из {total}, на этом компьютере дополнено ещё {local}.",
+  "No active connections to observe. This does not mean identification is disabled.": "Нет активных соединений для наблюдения. Это не означает, что определение процессов выключено.",
+  "Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.": "Включено по умолчанию. После сохранения режим always применяется к работающему ядру без перезапуска и проверяется каждые 30 секунд, в том числе после перезагрузки Clash Verge. Выключение останавливает лишь автоматическую поддержку режима.",
+
+  "Tests the controller connection above; it does not check or change process identification.": "Проверяет только подключение к контроллеру выше, не проверяя и не меняя определение процессов.",
+  "Process identification": "Определение процессов",
+  "Automatically keep process identification enabled": "Автоматически поддерживать определение процессов",
+  "Process identification is enabled": "Определение процессов включено",
+  "Process identification is limited (strict)": "Определение процессов ограничено (strict)",
+  "Process identification is disabled (off)": "Определение процессов отключено (off)",
+  "Could not confirm process identification": "Не удалось подтвердить состояние определения процессов",
+  "Connect to Clash to check process identification": "Подключитесь к Clash для проверки определения процессов",
+  "Waiting to check the current core": "Ожидание проверки текущего ядра",
+  "The core did not report a supported mode": "Ядро не сообщило поддерживаемый режим",
+  "Core mode": "Фактический режим ядра",
+  "Automatic maintenance is on": "Автоматическая поддержка режима включена",
+  "Automatic maintenance is off": "Автоматическая поддержка режима отключена",
+  "Checking…": "Проверка…",
+  "Check process identification": "Проверить определение процессов",
+  "This check only reads the current core. Even in always mode, some connections may still have no process information.": "Проверка только читает текущие настройки ядра. Даже в режиме always у некоторых соединений может не быть данных о процессе.",
+  "To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.": "Чтобы сохранять настройку после выхода из Clash Traffic, добавьте {line} в глобальную расширенную конфигурацию профилей Clash Verge.",
+
+  "Storage used": "Использовано места",
+  "Traffic statistics and access records saved on this computer. Settings are kept when clearing data.": "Статистика трафика и журнал подключений на этом компьютере. Настройки сохраняются при очистке.",
+  "Traffic {traffic} · access log {log}": "Статистика {traffic} · журнал {log}",
+  "Clear stored data…": "Очистить сохранённые данные…",
+  "Clearing…": "Очистка…",
+  "Stored data cleared": "Сохранённые данные очищены",
+
   "{s} s": "{s} с",
   "{m} min {s} s": "{m} мин {s} с",
   "{h} h {m} min": "{h} ч {m} мин",

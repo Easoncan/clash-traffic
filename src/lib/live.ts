@@ -26,6 +26,7 @@ export function appendRate(st: RateState, l: Live, max = 300): RateState {
   if (st.run === l.run && l.seq <= st.seq) return st;
   const point = { t: l.t, up: l.upRate, down: l.downRate };
   const last = st.rates[st.rates.length - 1];
-  const rates = last && l.t <= last.t ? [point] : [...st.rates, point];
+  const changedRun = st.run !== "" && st.run !== l.run;
+  const rates = changedRun || (last && l.t <= last.t) ? [point] : [...st.rates, point];
   return { rates: rates.length > max ? rates.slice(rates.length - max) : rates, run: l.run, seq: l.seq };
 }

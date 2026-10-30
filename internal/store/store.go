@@ -208,6 +208,28 @@ func ValidFileName(name string) bool { return name == DeviceFile || dayFilePatte
 // Root returns the directory of the store.
 func (s *Store) Root() string { return s.root }
 
+// Reset forgets cached traffic after the caller removed its files and
+// stopped writers. Keep the device identity and advance its generation.
+func (s *Store) Reset() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prev := s.self
+	s.self.Gen = s.gen + 1
+	s.touch()
+	if err := os.MkdirAll(filepath.Join(s.root, s.self.ID), 0o755); err != nil {
+		s.self = prev
+		return err
+	}
+	if err := s.writeDevice(); err != nil {
+		s.self = prev
+		return err
+	}
+	s.gen = s.self.Gen
+	s.open = map[string]*day{}
+	s.cache = map[string]*cached{}
+	return nil
+}
+
 // Self returns the local device.
 func (s *Store) Self() DeviceInfo {
 	s.mu.Lock()

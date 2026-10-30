@@ -23,28 +23,40 @@ export function LivePage({ status, notify, filters, setFilters }: PageProps) {
   const needAllRef = useRef(needAll);
   needAllRef.current = needAll;
   const fetching = useRef(false);
+  const fetchEpoch = useRef(0);
   const fetchAll = () => {
     if (fetching.current) return;
     fetching.current = true;
+    const epoch = fetchEpoch.current;
     Monitor.live()
-      .then((l) => setLive((cur) => newerLive(cur, l)))
+      .then((l) => { if (epoch === fetchEpoch.current) setLive((cur) => newerLive(cur, l)); })
       .catch(() => {})
-      .finally(() => (fetching.current = false));
+      .finally(() => { if (epoch === fetchEpoch.current) fetching.current = false; });
   };
   useEffect(() => {
     if (needAll) fetchAll();
   }, [needAll]);
 
   useEffect(() => {
+    const epoch = fetchEpoch.current;
     Monitor.rates()
-      .then((rates) => setRateState((cur) => (cur.rates.length ? cur : { ...cur, rates })))
+      .then((rates) => { if (epoch === fetchEpoch.current) setRateState((cur) => (cur.rates.length ? cur : { ...cur, rates })); })
       .catch(() => {});
-    Monitor.live().then((l) => setLive((cur) => newerLive(cur, l))).catch(() => {});
-    return events.live.on((l) => {
+    Monitor.live().then((l) => { if (epoch === fetchEpoch.current) setLive((cur) => newerLive(cur, l)); }).catch(() => {});
+    const offLive = events.live.on((l) => {
       if (needAllRef.current) fetchAll();
       else setLive((cur) => newerLive(cur, l));
       setRateState((cur) => appendRate(cur, l));
     });
+    const offData = events.data.on((change) => {
+      if (change.reason !== "clear") return;
+      fetchEpoch.current++;
+      fetching.current = false;
+      setLive(null);
+      setRateState({ rates: [], run: "", seq: 0 });
+      fetchAll();
+    });
+    return () => { offLive(); offData(); fetchEpoch.current++; };
   }, []);
 
   const conns = useMemo(() => {

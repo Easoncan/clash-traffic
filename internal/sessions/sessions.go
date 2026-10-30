@@ -139,6 +139,22 @@ func (l *Log) Add(s Session) {
 	l.pending = append(l.pending, s)
 }
 
+// Reset forgets the log's in-memory copies after its files were removed.
+// The caller stops its collector and flush loop first.
+func (l *Log) Reset() {
+	l.fmu.Lock()
+	defer l.fmu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.pmu.Lock()
+	defer l.pmu.Unlock()
+	l.pending, l.inflight = nil, nil
+	l.cache = map[string]*cachedDay{}
+	l.summaries = map[string]summary{}
+	l.checked = map[string]bool{}
+	l.cached = 0
+}
+
 // Flush appends the recorded sessions to the files of the days they ended.
 // Until they are written, queries find them among the inflight.
 func (l *Log) Flush() error {

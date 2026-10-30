@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Card, type PageProps } from "../app";
 import { errorText } from "../lib/hooks";
-import { ago } from "../lib/format";
+import { ago, bytes } from "../lib/format";
 import { takeChanged } from "../lib/form";
+import { processState } from "../lib/process";
 import { LANGUAGES, t, tn, tx } from "../lib/i18n";
-import { events, Monitor, Preferences, type AboutInfo, type ClashStatus, type Endpoint, type Settings } from "../mygo";
+import { events, Monitor, Preferences, type AboutInfo, type ClashStatus, type Endpoint, type Settings, type StorageUsage } from "../mygo";
 
 export function SettingsPage({ status, notify }: PageProps) {
   const [saved, setSaved] = useState<Settings | null>(null);
@@ -16,12 +17,23 @@ export function SettingsPage({ status, notify }: PageProps) {
   const [clashTest, setClashTest] = useState<ClashStatus | null>(null);
   const [syncTest, setSyncTest] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState("");
+  const [storage, setStorage] = useState<StorageUsage | null>(null);
+  const storageSeq = useRef(0);
+  const refreshStorage = async () => {
+    const seq = ++storageSeq.current;
+    const usage = await Preferences.storage();
+    if (seq === storageSeq.current) setStorage(usage);
+  };
   const savedRef = useRef(saved);
   savedRef.current = saved;
 
   useEffect(() => {
     Preferences.get().then((s) => (setSaved(s), setForm(s))).catch((err) => notify(errorText(err), "error"));
     Preferences.about().then(setAbout).catch(() => {});
+    const loadStorage = () => refreshStorage().catch(() => {});
+    void loadStorage();
+    const storageTimer = setInterval(loadStorage, 5000);
+    const offData = events.data.on(() => void loadStorage());
     // Texts made in the old language go: why updates cannot install, and
     // the results of the tests.
     const offLanguage = events.language.on(() => {
@@ -41,16 +53,25 @@ export function SettingsPage({ status, notify }: PageProps) {
     return () => {
       offLanguage();
       offUpdates();
+      offData();
+      clearInterval(storageTimer);
+      storageSeq.current++;
     };
   }, []);
   if (!form || !saved) return null;
 
-  const set = (patch: Partial<Settings>) => setForm({ ...form, ...patch });
+  const set = (patch: Partial<Settings>) => {
+    if (patch.clashMode !== undefined || patch.clashAddress !== undefined || patch.clashSecret !== undefined) setClashTest(null);
+    setForm({ ...form, ...patch });
+  };
   const dirty = JSON.stringify(form) !== JSON.stringify(saved) || password !== null;
   const isMac = document.documentElement.dataset.platform === "darwin";
   const isWindows = document.documentElement.dataset.platform === "win32";
   const updates = about?.updates;
   const canUpdate = !!updates?.enabled;
+  const process = processState(status);
+  const connectionDirty = form.clashMode !== saved.clashMode || form.clashAddress !== saved.clashAddress || form.clashSecret !== saved.clashSecret;
+  const processTone = process === "enabled" ? "good" : process === "error" ? "critical" : process === "partial" || process === "disabled" || process === "unknown" ? "warning" : "idle";
 
   const run = async (name: string, fn: () => Promise<void>) => {
     setBusy(name);
@@ -79,6 +100,7 @@ export function SettingsPage({ status, notify }: PageProps) {
       }
     });
   const testClash = () => run("clash", async () => setClashTest(await Preferences.testClash(form.clashMode, form.clashAddress, form.clashSecret)));
+  const checkProcess = () => run("process", async () => { await Monitor.checkProcessIdentification(); });
   const testSync = () =>
     run("sync", async () => {
       try {
@@ -92,6 +114,13 @@ export function SettingsPage({ status, notify }: PageProps) {
     run("folder", async () => {
       const dir = await Preferences.chooseFolder();
       if (dir) set({ syncFolder: dir });
+    });
+  const clearStorage = () =>
+    run("clear", async () => {
+      if (await Preferences.clearStorage()) {
+        await refreshStorage();
+        notify(t("Stored data cleared"));
+      }
     });
 
   return (
@@ -156,16 +185,46 @@ export function SettingsPage({ status, notify }: PageProps) {
             </span>
           )}
         </div>
-        <Toggle checked={form.forceProcess} onChange={(v) => set({ forceProcess: v })} label={t("Turn on process identification (needed to count each app)")}>
-          {tx(
-            "With Clash Verge's default {strict}, the core identifies processes only when a rule needs them, so most connections come from no known app. This turns the running core to {always}, again after Clash Verge reloads its config.",
-            { strict: <code>find-process-mode: strict</code>, always: <code>always</code> },
-          )}{" "}
-          {tx("The core now: {mode}. To keep it for good, add {line} to Clash Verge's global extend config, under Profiles.", {
-            mode: <code>{status?.findProcessMode || t("Unknown")}</code>,
+        <p class="hint">{t("Tests the controller connection above; it does not check or change process identification.")}</p>
+        <hr class="settings-divider" />
+        <h3 class="settings-subheading">{t("Process identification")}</h3>
+        <Toggle checked={form.forceProcess} onChange={(v) => set({ forceProcess: v })} label={t("Automatically keep process identification enabled")}>
+          {t("Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.")}
+        </Toggle>
+        <div class="status-box process-status" role="status">
+          <span class={`status-dot ${processTone}`} aria-hidden="true" />
+          <div>
+            <strong>{process === "enabled" ? t("Process identification is enabled")
+              : process === "partial" ? t("Process identification is limited (strict)")
+              : process === "disabled" ? t("Process identification is disabled (off)")
+              : process === "error" ? t("Could not confirm process identification")
+              : process === "disconnected" ? t("Connect to Clash to check process identification")
+              : process === "waiting" ? t("Waiting to check the current core")
+              : t("The core did not report a supported mode")}</strong>
+            <div class="muted small">
+              {t("Core mode")}: <code>{status?.connected && status.findProcessMode || t("Unknown")}</code>
+              {status?.connected && !!status.processCheckedAt && <> · {t("Last checked: {ago}", { ago: ago(status.processCheckedAt) })}</>}
+            </div>
+            <div class="muted small">{saved.forceProcess ? t("Automatic maintenance is on") : t("Automatic maintenance is off")}</div>
+            {status?.connected && status.processCheckError && <div class="error-text small">{status.processCheckError}</div>}
+            {status?.connected && !!status.processCheckedAt && !status.processCheckError && (
+              <div class="muted small">
+                {status.processSampleError ? t("Connection samples are unavailable; identification results cannot be observed yet.")
+                  : status.processConnections ? t("Current connections: the core identified {known} of {total}; this computer supplemented {local} more.", { known: status.processIdentified, total: status.processConnections, local: status.processSupplemented })
+                  : t("No active connections to observe. This does not mean identification is disabled.")}
+              </div>
+            )}
+          </div>
+          <button type="button" class="ghost small" disabled={!!busy || !status?.connected || connectionDirty} onClick={checkProcess}>
+            {busy === "process" ? t("Checking…") : t("Check process identification")}
+          </button>
+        </div>
+        <p class="hint">
+          {t("This check only reads the current core. Even in always mode, some connections may still have no process information.")}{" "}
+          {tx("To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.", {
             line: <code>find-process-mode: always</code>,
           })}
-        </Toggle>
+        </p>
       </Card>
 
       <Card title={t("This computer")}>
@@ -263,6 +322,15 @@ export function SettingsPage({ status, notify }: PageProps) {
       </Card>
 
       <Card title={t("Data")}>
+        <Field label={t("Storage used")} hint={t("Traffic statistics and access records saved on this computer. Settings are kept when clearing data.")}>
+          <strong class="storage-size">{storage ? bytes(storage.bytes) : "—"}</strong>
+          {storage && <span class="hint">{t("Traffic {traffic} · access log {log}", { traffic: bytes(storage.traffic), log: bytes(storage.accessLog) })}</span>}
+          <div>
+            <button type="button" class="ghost danger" disabled={!!busy} onClick={clearStorage}>
+              {busy === "clear" ? t("Clearing…") : t("Clear stored data…")}
+            </button>
+          </div>
+        </Field>
         <Field label={t("Keep the access log")} hint={t("The log of each connection stays on this computer; the hourly numbers are kept for good either way")}>
           <select value={String(form.sessionDays)} onChange={(e) => set({ sessionDays: Number(e.currentTarget.value) })}>
             {(

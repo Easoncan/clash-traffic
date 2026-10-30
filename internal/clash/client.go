@@ -47,6 +47,23 @@ func (e Endpoint) String() string {
 	return e.Address
 }
 
+// IsLocal reports whether this controller runs on this computer, without
+// resolving hostnames. Only local connections can be attributed by its OS.
+func (e Endpoint) IsLocal() bool {
+	if e.Kind == KindUnix || e.Kind == KindPipe {
+		return true
+	}
+	if e.Kind != KindHTTP {
+		return false
+	}
+	u, err := url.Parse(e.Address)
+	if err != nil {
+		return false
+	}
+	ip, err := netip.ParseAddr(u.Hostname())
+	return strings.EqualFold(u.Hostname(), "localhost") || err == nil && ip.IsLoopback()
+}
+
 // ParseEndpoint reads an address typed by the user: unix:///path,
 // \\.\pipe\name, host:port or http(s)://host:port.
 func ParseEndpoint(s, secret string) (Endpoint, error) {
@@ -83,6 +100,8 @@ type Metadata struct {
 	SniffHost         string `json:"sniffHost"`
 	Process           string `json:"process"`
 	ProcessPath       string `json:"processPath"`
+	InboundIP         string `json:"inboundIP"`
+	InboundPort       string `json:"inboundPort"`
 	InboundName       string `json:"inboundName"`
 	RemoteDestination string `json:"remoteDestination"`
 }

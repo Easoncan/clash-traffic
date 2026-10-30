@@ -46,6 +46,7 @@ func useUpdater(core *Core, lang string) {
 	if t, ok := http.DefaultTransport.(*http.Transport); ok {
 		t.Proxy = core.updateProxy
 	}
+	http.DefaultTransport = &updateFeedTransport{base: http.DefaultTransport, version: mygo.App.Version}
 	updater.OnChange(func() { _ = UpdateEvent.Broadcast(updateInfo()) })
 }
 

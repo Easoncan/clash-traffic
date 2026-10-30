@@ -8,6 +8,27 @@ import (
 	"testing"
 )
 
+func TestEndpointIsLocal(t *testing.T) {
+	for _, tc := range []struct {
+		ep   Endpoint
+		want bool
+	}{
+		{Endpoint{Kind: KindUnix, Address: "/tmp/core.sock"}, true},
+		{Endpoint{Kind: KindPipe, Address: `\\.\pipe\core`}, true},
+		{Endpoint{Kind: KindHTTP, Address: "http://127.0.0.1:9090"}, true},
+		{Endpoint{Kind: KindHTTP, Address: "http://[::1]:9090"}, true},
+		{Endpoint{Kind: KindHTTP, Address: "http://localhost:9090"}, true},
+		{Endpoint{Kind: KindHTTP, Address: "http://192.168.1.2:9090"}, false},
+		{Endpoint{Kind: KindHTTP, Address: "http://core.example:9090"}, false},
+		{Endpoint{Kind: KindHTTP, Address: ":bad"}, false},
+		{Endpoint{}, false},
+	} {
+		if got := tc.ep.IsLocal(); got != tc.want {
+			t.Errorf("IsLocal(%+v) = %v, want %v", tc.ep, got, tc.want)
+		}
+	}
+}
+
 func TestProxyURL(t *testing.T) {
 	for _, tc := range []struct {
 		name, configs, want string

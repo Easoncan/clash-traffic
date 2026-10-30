@@ -43,6 +43,8 @@ type Traffic struct{ core *Core }
 
 // Report summarizes the traffic a query selects.
 func (t *Traffic) Report(q store.Query) store.Report {
+	t.core.dataMu.RLock()
+	defer t.core.dataMu.RUnlock()
 	return *t.core.store.Query(q)
 }
 
@@ -54,6 +56,8 @@ func (t *Traffic) Sessions(q sessions.SessionQuery) sessions.SessionPage {
 
 // Devices lists the devices with data, this one first.
 func (t *Traffic) Devices() []store.DeviceInfo {
+	t.core.dataMu.RLock()
+	defer t.core.dataMu.RUnlock()
 	return t.core.store.Devices()
 }
 
@@ -69,6 +73,8 @@ func (t *Traffic) Export(ctx context.Context, q store.Query) (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
+	t.core.dataMu.RLock()
+	defer t.core.dataMu.RUnlock()
 	f, err := os.Create(path)
 	if err != nil {
 		return "", err
@@ -108,6 +114,8 @@ func (t *Traffic) ForgetDevice(ctx context.Context, id string) (bool, error) {
 	if err != nil || res.Button != 0 {
 		return false, err
 	}
+	t.core.dataMu.RLock()
+	defer t.core.dataMu.RUnlock()
 	if err := t.core.store.Forget(id); err != nil {
 		return false, err
 	}
@@ -120,6 +128,12 @@ type Monitor struct{ core *Core }
 
 // Status returns the state of the connection to the core.
 func (m *Monitor) Status() ClashStatus { return m.core.Status() }
+
+// CheckProcessIdentification reads whether the current core has process
+// identification enabled; it does not apply or change settings.
+func (m *Monitor) CheckProcessIdentification(ctx context.Context) ClashStatus {
+	return m.core.CheckProcessIdentification(ctx)
+}
 
 // Live returns the latest snapshot of every open connection.
 func (m *Monitor) Live() collector.Live { return m.core.Live() }
@@ -201,6 +215,8 @@ func (p *Preferences) OpenDataFolder() error {
 
 // About describes the app.
 func (p *Preferences) About() AboutInfo {
+	p.core.dataMu.RLock()
+	defer p.core.dataMu.RUnlock()
 	return AboutInfo{
 		Version:  mygo.App.Version(),
 		Platform: runtime.GOOS + "/" + runtime.GOARCH,
@@ -209,6 +225,27 @@ func (p *Preferences) About() AboutInfo {
 		Dev:      mygo.IsDev(),
 		Updates:  updateInfo(),
 	}
+}
+
+// Storage reports the disk space occupied by clearable local data.
+func (p *Preferences) Storage() (StorageUsage, error) { return p.core.StorageUsage() }
+
+// ClearStorage asks again before deleting any traffic data. Cancel is the
+// default for both Enter and Escape.
+func (p *Preferences) ClearStorage(ctx context.Context) (bool, error) {
+	res, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Parent:        mygo.CallerWindow(ctx),
+		Type:          mygo.MessageWarning,
+		Message:       i18n.T("Clear stored traffic data?"),
+		Detail:        i18n.T("This deletes traffic statistics and access records stored on this computer. Settings are kept and counting continues. Synced data from other devices may return. This cannot be undone."),
+		Buttons:       []string{i18n.T("Clear data"), i18n.T("Cancel")},
+		DefaultButton: 1, CancelButton: 1,
+	})
+	if err != nil || res.Button != 0 {
+		return false, err
+	}
+	err = p.core.ClearStorage(ctx)
+	return err == nil, err
 }
 
 // Language returns the language the app shows, a tag of i18n.Languages.

@@ -52,7 +52,7 @@ func TestUpdateProxy(t *testing.T) {
 		}
 		return u.String()
 	}
-	const feed = "https://github.com/lufficc/clash-traffic/releases/latest/download/update-darwin-universal.json"
+	const feed = "https://github.com/Easoncan/clash-traffic/releases/latest/download/update-darwin-universal.json"
 	if got := proxy(feed); got != "" {
 		t.Errorf("without Clash: proxy %q, want none", got)
 	}

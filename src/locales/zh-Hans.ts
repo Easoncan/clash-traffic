@@ -1,6 +1,36 @@
 import type { Dict } from "../lib/i18n";
 
 const zhHans: Dict = {
+  "Connection samples are unavailable; identification results cannot be observed yet.": "暂时无法读取连接样本，尚无法观察实际识别结果。",
+  "Current connections: the core identified {known} of {total}; this computer supplemented {local} more.": "当前业务连接：内核识别 {known}/{total} 条；本机额外补全 {local} 条。",
+  "No active connections to observe. This does not mean identification is disabled.": "当前没有可供观察的业务连接，不代表进程识别未开启。",
+  "Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.": "默认开启。保存后直接将运行中的 Clash 设为 always，无需重启；每 30 秒检查一次，并在 Clash Verge 重载后重新应用。关闭仅停止本应用的自动维护。",
+
+  "Tests the controller connection above; it does not check or change process identification.": "仅测试上面的控制接口连接，不会检查或更改进程识别。",
+  "Process identification": "进程识别",
+  "Automatically keep process identification enabled": "自动保持进程识别开启",
+  "Process identification is enabled": "进程识别已开启",
+  "Process identification is limited (strict)": "进程识别未全面开启（strict）",
+  "Process identification is disabled (off)": "进程识别已关闭（off）",
+  "Could not confirm process identification": "未能确认进程识别状态",
+  "Connect to Clash to check process identification": "连接 Clash 后才能检查进程识别",
+  "Waiting to check the current core": "等待检查当前内核",
+  "The core did not report a supported mode": "内核未返回可识别的进程模式",
+  "Core mode": "内核实际模式",
+  "Automatic maintenance is on": "本应用自动维护：已开启",
+  "Automatic maintenance is off": "本应用自动维护：已关闭",
+  "Checking…": "正在检查…",
+  "Check process identification": "检查进程识别",
+  "This check only reads the current core. Even in always mode, some connections may still have no process information.": "检查仅读取当前内核配置。即使处于 always 模式，部分连接仍可能缺少进程信息。",
+  "To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.": "若希望退出 Clash Traffic 后仍保持此设置，可在 Clash Verge「订阅 → 全局扩展覆写配置」中加入 {line}。",
+
+  "Storage used": "存储占用",
+  "Traffic statistics and access records saved on this computer. Settings are kept when clearing data.": "本机保存的流量统计和访问记录，清除数据会保留设置。",
+  "Traffic {traffic} · access log {log}": "统计数据 {traffic} · 访问记录 {log}",
+  "Clear stored data…": "清除存储数据…",
+  "Clearing…": "正在清除…",
+  "Stored data cleared": "存储数据已清除",
+
   "{s} s": "{s} 秒",
   "{m} min {s} s": "{m} 分 {s} 秒",
   "{h} h {m} min": "{h} 小时 {m} 分",

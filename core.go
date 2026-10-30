@@ -17,6 +17,7 @@ import (
 	"clashtraffic/internal/collector"
 	"clashtraffic/internal/i18n"
 	"clashtraffic/internal/mesh"
+	"clashtraffic/internal/procname"
 	"clashtraffic/internal/sessions"
 	"clashtraffic/internal/store"
 	"clashtraffic/internal/syncer"
@@ -29,10 +30,17 @@ type ClashStatus struct {
 	Source    string `json:"source"` // where the endpoint was found
 	Version   string `json:"version"`
 	Error     string `json:"error"`
-	// FindProcessMode of the core: "always" finds the process of every
-	// connection, "strict" of few, "off" of none.
+	// FindProcessMode is the core's lookup policy: "always" attempts every
+	// connection, "strict" follows rules, "off" skips lookup. Attempts can fail.
 	FindProcessMode string `json:"findProcessMode"`
-	Since           int64  `json:"since"` // unix ms of the connection
+	// The latest runtime check and observations of existing connections.
+	ProcessCheckedAt    int64  `json:"processCheckedAt"`
+	ProcessCheckError   string `json:"processCheckError"`
+	ProcessConnections  int    `json:"processConnections"`
+	ProcessIdentified   int    `json:"processIdentified"`
+	ProcessSupplemented int    `json:"processSupplemented"`
+	ProcessSampleError  string `json:"processSampleError"`
+	Since               int64  `json:"since"` // unix ms of the connection
 }
 
 // SyncStatus tells how syncing with the other devices goes.
@@ -62,6 +70,9 @@ const (
 
 // Core counts the traffic of the Clash core into the store and syncs it.
 type Core struct {
+	processMu    sync.Mutex   // serialize checks and automatic mode changes
+	lifecycleMu  sync.Mutex   // starting, stopping and clearing the local store
+	dataMu       sync.RWMutex // queries/syncs finish before stored data is cleared
 	dir          string
 	settingsPath string
 	statePath    string
@@ -152,6 +163,12 @@ func (c *Core) Init(dir string, lockErr error) error {
 
 // Start starts counting and syncing.
 func (c *Core) Start() {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.startLoops()
+}
+
+func (c *Core) startLoops() {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	c.wg.Add(3)
@@ -166,11 +183,14 @@ func (c *Core) Start() {
 // Stop saves what was counted and, when syncing is on, sends it to the
 // other devices once more.
 func (c *Core) Stop() {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	if c.cancel == nil {
 		return
 	}
 	c.cancel()
 	c.wg.Wait()
+	c.cancel = nil
 	if c.settings().SyncKind != SyncOff {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
@@ -227,6 +247,7 @@ func (c *Core) pollLoop(ctx context.Context) {
 		lastProc   time.Time
 		lastClean  time.Time
 		lastSubs   time.Time
+		processes  procname.Resolver
 	)
 	// drop forgets the connection, but not what was counted: if the same
 	// core answers again soon, the difference to its totals over the gap is
@@ -296,6 +317,9 @@ func (c *Core) pollLoop(ctx context.Context) {
 
 		tctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		snap, err := client.Connections(tctx)
+		if err == nil && client.Endpoint().IsLocal() {
+			processes.Resolve(tctx, snap.Connections)
+		}
 		cancel()
 		if err != nil {
 			if ctx.Err() != nil {
@@ -363,36 +387,8 @@ func (c *Core) refreshSubs() {
 	}
 }
 
-// checkProcessMode keeps find-process-mode at "always" when the settings
-// ask for it: Clash Verge sets it back whenever it reloads its profile.
-func (c *Core) checkProcessMode(ctx context.Context, client *clash.Client) {
-	tctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	mode, err := client.FindProcessMode(tctx)
-	if err != nil {
-		return
-	}
-	if c.settings().ForceProcess && mode != "always" {
-		if err := client.SetFindProcessMode(tctx, "always"); err != nil {
-			log.Println("find-process-mode:", err)
-		} else {
-			mode = "always"
-		}
-	}
-	c.mu.Lock()
-	s := c.status
-	c.mu.Unlock()
-	if s.Connected && s.FindProcessMode != mode {
-		s.FindProcessMode = mode
-		c.setStatus(s)
-	}
-}
-
 func (c *Core) setStatus(s ClashStatus) {
 	c.mu.Lock()
-	if s.Connected && s.FindProcessMode == "" {
-		s.FindProcessMode = c.status.FindProcessMode
-	}
 	changed := c.status != s
 	c.status = s
 	c.mu.Unlock()
@@ -511,6 +507,8 @@ func backendOf(f settingsFile) (syncer.Backend, error) {
 
 // RunSync syncs with the other devices now.
 func (c *Core) RunSync(ctx context.Context) (SyncStatus, error) {
+	c.dataMu.RLock()
+	defer c.dataMu.RUnlock()
 	f := c.settings()
 	b, err := backendOf(f)
 	if err != nil {
@@ -571,6 +569,8 @@ func (c *Core) Settings() Settings {
 // SaveSettings applies and saves new preferences. A nil password keeps
 // the saved one.
 func (c *Core) SaveSettings(in Settings, password *string) (Settings, error) {
+	c.dataMu.RLock()
+	defer c.dataMu.RUnlock()
 	c.mu.Lock()
 	old := c.file
 	f := old
@@ -663,6 +663,8 @@ func (c *Core) TestSync(in Settings, password *string) error {
 // Sessions returns a page of the access log, with the connections open now
 // as the core reports them.
 func (c *Core) Sessions(q sessions.SessionQuery) sessions.SessionPage {
+	c.dataMu.RLock()
+	defer c.dataMu.RUnlock()
 	c.mu.Lock()
 	live := c.live
 	c.mu.Unlock()

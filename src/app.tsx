@@ -191,6 +191,11 @@ export function App() {
     setFiltersState((cur) => ({ ...cur, ...f }));
   }, []);
   const notify = useCallback((msg: string, kind: "ok" | "error" = "ok") => setToast({ msg, kind, id: Date.now() }), []);
+  useEffect(() => events.data.on((change) => {
+    if (change.reason === "clear") {
+      setFiltersState((cur) => ({ ...cur, device: "", app: "", host: "", chain: "", sub: null }));
+    }
+  }), []);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), toast.kind === "error" ? 6000 : 3000);

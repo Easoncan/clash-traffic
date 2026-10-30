@@ -1,6 +1,36 @@
 import type { Dict } from "../lib/i18n";
 
 const zhHant: Dict = {
+  "Connection samples are unavailable; identification results cannot be observed yet.": "暫時無法讀取連線樣本，尚無法觀察實際辨識結果。",
+  "Current connections: the core identified {known} of {total}; this computer supplemented {local} more.": "目前業務連線：核心辨識 {known}/{total} 條；本機額外補全 {local} 條。",
+  "No active connections to observe. This does not mean identification is disabled.": "目前沒有可供觀察的業務連線，不代表程序辨識未開啟。",
+  "Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.": "預設開啟。儲存後直接將執行中的 Clash 設為 always，無需重新啟動；每 30 秒檢查一次，並在 Clash Verge 重新載入後重新套用。關閉僅停止本應用的自動維護。",
+
+  "Tests the controller connection above; it does not check or change process identification.": "僅測試上方控制介面的連線，不會檢查或變更程序辨識。",
+  "Process identification": "程序辨識",
+  "Automatically keep process identification enabled": "自動保持程序辨識開啟",
+  "Process identification is enabled": "程序辨識已開啟",
+  "Process identification is limited (strict)": "程序辨識未全面開啟（strict）",
+  "Process identification is disabled (off)": "程序辨識已關閉（off）",
+  "Could not confirm process identification": "無法確認程序辨識狀態",
+  "Connect to Clash to check process identification": "連線 Clash 後才能檢查程序辨識",
+  "Waiting to check the current core": "等待檢查目前核心",
+  "The core did not report a supported mode": "核心未傳回可辨識的程序模式",
+  "Core mode": "核心實際模式",
+  "Automatic maintenance is on": "本應用自動維護：已開啟",
+  "Automatic maintenance is off": "本應用自動維護：已關閉",
+  "Checking…": "正在檢查…",
+  "Check process identification": "檢查程序辨識",
+  "This check only reads the current core. Even in always mode, some connections may still have no process information.": "檢查僅讀取目前核心設定。即使處於 always 模式，部分連線仍可能缺少程序資訊。",
+  "To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.": "若希望結束 Clash Traffic 後仍保持此設定，可在 Clash Verge「訂閱 → 全域擴充覆寫設定」中加入 {line}。",
+
+  "Storage used": "儲存空間用量",
+  "Traffic statistics and access records saved on this computer. Settings are kept when clearing data.": "本機儲存的流量統計與存取記錄，清除資料會保留設定。",
+  "Traffic {traffic} · access log {log}": "統計資料 {traffic} · 存取記錄 {log}",
+  "Clear stored data…": "清除儲存資料…",
+  "Clearing…": "正在清除…",
+  "Stored data cleared": "儲存資料已清除",
+
   "{s} s": "{s} 秒",
   "{m} min {s} s": "{m} 分 {s} 秒",
   "{h} h {m} min": "{h} 小時 {m} 分",

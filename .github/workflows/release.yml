@@ -1,0 +1,108 @@
+name: Check and package
+
+on:
+  push:
+    branches: [main]
+    tags: ["[0-9]*.[0-9]*.[0-9]*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run generate
+      - run: git diff --exit-code -- src/mygo.ts
+      - run: CGO_ENABLED=0 go test ./... -timeout 2m
+      - run: go test -race ./... -timeout 2m
+      - run: go run github.com/egoist/mygo/cmd/mygo vet .
+      - run: bun run test:web
+      - run: bun run build:web
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: check
+    name: Package ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-15, platform: "darwin/universal", output: "darwin-universal" }
+          - { name: Windows, os: ubuntu-24.04, platform: "windows/amd64,windows/arm64", output: "windows-amd64-windows-arm64" }
+          - { name: Linux, os: ubuntu-24.04, platform: "linux/amd64,linux/arm64", output: "linux-amd64-linux-arm64" }
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Test macOS process lookup
+        if: runner.os == 'macOS'
+        run: CGO_ENABLED=0 go test ./internal/procname -timeout 1m
+      - name: Install Windows packaging tool
+        if: matrix.name == 'Windows'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Build, verify signatures and prepare bare-tag download URLs
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: bun run build:release '${{ matrix.platform }}'
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: release-${{ matrix.name }}
+          path: build/release-${{ matrix.output }}/assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Extract release notes
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          tag = os.environ['GITHUB_REF_NAME']
+          text = pathlib.Path('CHANGELOG.md').read_text()
+          match = re.search(r'^## ' + re.escape(tag) + r'\s*\n(.*?)(?=^## |\Z)', text, re.M | re.S)
+          if not match:
+              raise SystemExit('Missing changelog section for ' + tag)
+          pathlib.Path('release-notes.md').write_text(match[1].strip() + '\n')
+          PY
+      - name: Create draft after every platform passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft > release-is-draft.txt; then
+            test "$(cat release-is-draft.txt)" = true || { echo 'Refusing to overwrite a published release'; exit 1; }
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --draft --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+          fi
+          (cd release-assets && sha256sum * > SHA256SUMS)
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber release-assets/*

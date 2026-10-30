@@ -1,6 +1,36 @@
 import type { Dict } from "../lib/i18n";
 
 const ko: Dict = {
+  "Connection samples are unavailable; identification results cannot be observed yet.": "연결 표본을 읽을 수 없어 실제 식별 결과를 아직 확인할 수 없습니다.",
+  "Current connections: the core identified {known} of {total}; this computer supplemented {local} more.": "현재 연결: 코어가 {total}개 중 {known}개 식별, 이 컴퓨터에서 {local}개 추가 보완.",
+  "No active connections to observe. This does not mean identification is disabled.": "현재 관찰할 연결이 없습니다. 프로세스 식별이 꺼졌다는 뜻은 아닙니다.",
+  "Enabled by default. After saving, this applies always mode to the running core without a restart and rechecks every 30 seconds, including after Clash Verge reloads. Turning this off only stops automatic maintenance.": "기본으로 켜져 있습니다. 저장하면 재시작 없이 실행 중인 코어에 always를 적용하고 Clash Verge 재로딩 후에도 30초마다 확인합니다. 끄면 자동 유지 기능만 중지됩니다.",
+
+  "Tests the controller connection above; it does not check or change process identification.": "위 컨트롤러 연결만 테스트하며 프로세스 식별을 확인하거나 변경하지 않습니다.",
+  "Process identification": "프로세스 식별",
+  "Automatically keep process identification enabled": "프로세스 식별을 자동으로 활성 상태로 유지",
+  "Process identification is enabled": "프로세스 식별이 활성화되어 있습니다",
+  "Process identification is limited (strict)": "프로세스 식별이 제한적입니다(strict)",
+  "Process identification is disabled (off)": "프로세스 식별이 비활성화되어 있습니다(off)",
+  "Could not confirm process identification": "프로세스 식별 상태를 확인하지 못했습니다",
+  "Connect to Clash to check process identification": "Clash에 연결한 후 프로세스 식별을 확인하세요",
+  "Waiting to check the current core": "현재 코어 확인 대기 중",
+  "The core did not report a supported mode": "코어가 지원되는 모드를 반환하지 않았습니다",
+  "Core mode": "실제 코어 모드",
+  "Automatic maintenance is on": "자동 유지: 켜짐",
+  "Automatic maintenance is off": "자동 유지: 꺼짐",
+  "Checking…": "확인 중…",
+  "Check process identification": "프로세스 식별 확인",
+  "This check only reads the current core. Even in always mode, some connections may still have no process information.": "이 확인은 현재 코어 설정만 읽습니다. always 모드에서도 일부 연결에는 프로세스 정보가 없을 수 있습니다.",
+  "To keep this setting when Clash Traffic is not running, add {line} to Clash Verge's global extend configuration under Profiles.": "Clash Traffic 종료 후에도 유지하려면 Clash Verge 프로필의 전역 확장 설정에 {line}을 추가하세요。",
+
+  "Storage used": "저장 공간 사용량",
+  "Traffic statistics and access records saved on this computer. Settings are kept when clearing data.": "이 컴퓨터에 저장된 트래픽 통계와 접속 기록입니다. 데이터를 지워도 설정은 유지됩니다.",
+  "Traffic {traffic} · access log {log}": "트래픽 통계 {traffic} · 접속 기록 {log}",
+  "Clear stored data…": "저장된 데이터 지우기…",
+  "Clearing…": "지우는 중…",
+  "Stored data cleared": "저장된 데이터를 지웠습니다",
+
   "{s} s": "{s}초",
   "{m} min {s} s": "{m}분 {s}초",
   "{h} h {m} min": "{h}시간 {m}분",
